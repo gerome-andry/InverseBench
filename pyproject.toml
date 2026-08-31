@@ -25,4 +25,15 @@ dependencies = [
     "torchvision>=0.24.0",
     "tqdm>=4.67.1",
     "wandb>=0.22.2",
+    "kps",
 ]
+
+[tool.uv]
+# Pick the PyTorch wheels matching the machine uv installs on: CUDA builds on a GPU node
+# (matched to the driver), CPU/MPS builds on macOS. Mirrors the same setting in KPS, which
+# is not inherited -- `tool.uv` is only honoured in the project uv is invoked in. Override
+# with e.g. `uv sync --torch-backend cu126`.
+torch-backend = "auto"
+
+[tool.uv.sources]
+kps = { path = "../KPS", editable = true }

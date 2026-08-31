@@ -14,6 +14,7 @@ Abstract: *Plug-and-play diffusion priors (PnPDP) have emerged as a promising re
 - [Architecture](#architecture)
 - [Environment requirements](#environment-requirements)
   - [UV](#uv)
+  - [KPS](#kps)
   - [Docker](#docker)
 - [Pre-trained models](#pre-trained-models)
 - [Data](#data)
@@ -64,6 +65,53 @@ Once the dependencies are installed, you can run the following command to activa
 ```bash
 source .venv/bin/activate
 ```
+
+### KPS
+
+This fork uses [KPS](https://github.com/ThomasSavary08/KPS) as its sampling library. It is
+declared in `pyproject.toml` as a path dependency, so the two repositories must be cloned
+**side by side**:
+
+```
+your-workspace/
+├── KPS/            # the library
+└── InverseBench/   # this fork
+```
+
+```bash
+git clone git@github.com:ThomasSavary08/KPS.git
+git clone git@github.com:gerome-andry/InverseBench.git
+cd InverseBench
+uv sync
+```
+
+`uv sync` installs `kps` along with everything else — there is no separate install step, and
+you do not need to create KPS's own environment to use it from here.
+
+The install is **editable**: `kps` resolves to `../KPS` on disk, so changes to the library
+take effect immediately. Re-run `uv sync` only when KPS's *dependencies* change, not when its
+code does.
+
+Check it worked:
+
+```bash
+uv run python -c "import kps.sampler, kps.update; print('kps OK')"
+```
+
+<details>
+<summary>Pinning KPS to a specific commit</summary>
+
+The path dependency is the right choice while both repositories move together. To freeze a
+run for a paper or a cluster job, swap the source in `pyproject.toml` — the entry in
+`[project].dependencies` stays exactly as it is:
+
+```toml
+[tool.uv.sources]
+kps = { git = "https://github.com/ThomasSavary08/KPS", rev = "<commit sha>" }
+```
+
+Then `uv lock && uv sync`. With a git source the repositories no longer need to be siblings.
+</details>
 
 ### Docker
 We also provide [Dockerfile](Docker/Dockerfile) under `Docker`, offering the best compatibility for all five tasks. It can be used as follows:
