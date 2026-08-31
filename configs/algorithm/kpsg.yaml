@@ -1,0 +1,13 @@
+name: KPSG
+ 
+method:
+  _target_: algo.kps.KPSAlgo
+  
+  num_steps: 16
+  
+  solve_iter: 2
+  posterior_iter: 1
+  num_particles: 64
+  prior_mode: "gradient"
+  slope_mode: "gradient"
+ 

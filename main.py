@@ -23,6 +23,7 @@ from torch.utils.data import DataLoader
 import wandb
 
 from utils.helper import open_url, create_logger
+import json
 
 
 @hydra.main(version_base="1.3", config_path="configs", config_name="config")
@@ -92,17 +93,22 @@ def main(config):
         if config.inference:
             # get the observation
             observation = forward_op(data)
+
             target = data['target']
             # run the algorithm
             logger.info(f'Running inference on test sample {data_id}...')
             recon = algo.inference(observation, num_samples=config.num_samples)
             logger.info(f'Peak GPU memory usage: {torch.cuda.max_memory_allocated() / 1024 ** 3:.2f} GB')
 
+            recon_obs = forward_op({"target":recon})
+
             result_dict = {
                 'observation': observation,
                 'recon': forward_op.unnormalize(recon).cpu(),
+                'recon_obs': recon_obs.cpu(),
                 'target': forward_op.unnormalize(target).cpu(),
             }
+            
             torch.save(result_dict, save_path)
             logger.info(f"Saved results to {save_path}.")
         else:
@@ -118,6 +124,10 @@ def main(config):
     # aggregate the results
     metric_state = evaluator.compute()
     logger.info(f"Final metric results: {metric_state}...")
+
+    with open(os.path.join(exp_dir, 'metrics.json'), 'w') as f:
+        json.dump({k: float(v) for k, v in metric_state.items()}, f, indent=2)
+
     if config.wandb:
         wandb.log(metric_state)
         wandb.finish()

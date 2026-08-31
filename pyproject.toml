@@ -37,3 +37,6 @@ torch-backend = "auto"
 
 [tool.uv.sources]
 kps = { path = "../KPS", editable = true }
+
+[tool.uv.config-settings-package]
+kps = { editable_mode = "compat" }

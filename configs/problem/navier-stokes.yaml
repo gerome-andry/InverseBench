@@ -6,7 +6,7 @@ model:
   Re: 200.0
   resolution: 128
   downsample_factor: 2
-  sigma_noise: 0.0
+  sigma_noise: 0.0001
   unnorm_scale: 10.0
   adaptive: True  # adaptive time-stepping
   delta_t: 0.002   # If not adaptive, use a small time step for numerical stability
