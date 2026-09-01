@@ -1,10 +1,26 @@
 from azula.denoise import Denoiser, DiracPosterior
 from azula.noise import Schedule
 
+import math
 import torch
 
 from torch import Tensor
 from typing import Optional
+
+
+EDM_SIGMA_MIN = 0.002
+EDM_SIGMA_MAX = 80.0
+
+
+def _usable(value, fallback: float) -> float:
+    r"""Accepts a declared noise level only if it is finite and strictly positive."""
+
+    if value is None:
+        return fallback
+
+    value = float(value)
+
+    return value if 0 < value < math.inf else fallback
 
 
 class EDMSchedule(Schedule):
@@ -37,9 +53,14 @@ class EDMNetDenoiser(Denoiser):
 
     InverseBench nets (``VPPrecond``, ``VEPrecond``, ``iDDPMPrecond``, ``EDMPrecond``)
     are all Karras-style: they take ``(x, sigma)`` with ``x = x_0 + sigma eps`` and
-    return the denoised ``x_0``. Each exposes its own ``sigma_min`` / ``sigma_max``,
-    which differ by preconditioner -- EDM defaults to [0.002, 80] while VP works out
-    to roughly [0.001, 152] -- so the range is read from the net rather than assumed.
+    return the denoised ``x_0``.
+
+    The noise range is read from the net where it is meaningful -- ``VPPrecond`` works
+    out to roughly [0.001, 152], ``VEPrecond`` declares [0.02, 100], ``iDDPMPrecond``
+    computes it -- but ``EDMPrecond`` uses ``sigma_min = 0`` and ``sigma_max = inf`` as
+    sentinels for "unbounded", not as a usable range. Those would make the Karras
+    spacing ``inf - inf``, so anything non-finite or non-positive falls back to the EDM
+    defaults [0.002, 80].
 
     Arguments:
         net: A preconditioned InverseBench net.
@@ -59,9 +80,9 @@ class EDMNetDenoiser(Denoiser):
         self.net = net
 
         if sigma_min is None:
-            sigma_min = float(net.sigma_min)
+            sigma_min = _usable(getattr(net, "sigma_min", None), EDM_SIGMA_MIN)
         if sigma_max is None:
-            sigma_max = float(net.sigma_max)
+            sigma_max = _usable(getattr(net, "sigma_max", None), EDM_SIGMA_MAX)
 
         self._schedule = EDMSchedule(sigma_min=sigma_min, sigma_max=sigma_max, rho=rho)
 
