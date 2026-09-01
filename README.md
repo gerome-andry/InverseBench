@@ -98,6 +98,37 @@ Check it worked:
 uv run python -c "import kps.sampler, kps.update; print('kps OK')"
 ```
 
+#### Running the experiments
+
+Three problems are used to test KPS. `algorithm` is one of `kpsp` (PIPLF), `kpsh` (HIPLF) or
+`kpsg` (GIPLF).
+
+```bash
+uv run python main.py problem=navier-stokes algorithm=kpsp pretrain=navier-stokes
+uv run python main.py problem=inv-scatter   algorithm=kpsp pretrain=inv-scatter
+uv run python main.py problem=blackhole     algorithm=kpsg pretrain=blackhole
+```
+
+`kpsg` differentiates the forward operator through `torch.func`; `kpsp` and `kpsh` treat it as
+a black box. That decides which variants each problem supports:
+
+| problem | `kpsp` / `kpsh` | `kpsg` | why |
+|---|---|---|---|
+| navier-stokes | yes | **no** | the operator is `@torch.no_grad()`, so `vjp` returns zero *silently* -- the run completes and yields unconditional prior samples |
+| inv-scatter | yes | impractical | the forward contains a CG solve of up to 1000 iterations, nested over frequencies and transmissions; reverse mode tapes all of it |
+| blackhole | yes | **yes** | pure-torch measurement chain, no control flow, 64x64 state -- the one cheap `kpsg` target |
+
+#### Black hole environment
+
+The black hole task reaches `pynfft` through `ehtim`, which only builds against `numpy 1.x`, so
+it wants a separate environment (see [issue #3](https://github.com/devzhk/InverseBench/issues/3)).
+
+`kps` is compatible with it as-is. It never imports numpy and declares only `numpy>=1.24`, so it
+installs unchanged alongside a numpy-1.x stack -- no separate KPS build, and the path dependency
+works the same way. Only the *setup* path needs numpy: `A_vis`, the measurement matrix, is built
+once through `ehtim` at construction. The differentiable forward is pure torch on that cached
+tensor, which is also why `kpsg` is viable here.
+
 <details>
 <summary>Pinning KPS to a specific commit</summary>
 

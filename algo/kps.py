@@ -24,7 +24,8 @@ class KPSAlgo(Algo):
     prior_mode      "particles" (ensemble covariance) or "gradient" (analytic, via vjp).
     slope_mode      "particles" (statistical linear regression) or "gradient" (Jacobian).
     solve_iter      Krylov iterations in the Kalman solve.
-    ridge_x         Ridge on the state covariance. Absolute, not relative to data
+    ridge_x         Ridge on the state covariance. Unused by GIPLF, whose slope is an
+                    autodiff Jacobian and never forms Cxx. Absolute, not relative to data
                     scale, and marginal at 1e-6 in float32 -- raise it if the inverse
                     asserts 'not positive definite'.
     ridge_y         Ridge on the residual covariance. Same caveat.
