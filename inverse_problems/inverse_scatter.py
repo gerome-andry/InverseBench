@@ -354,10 +354,12 @@ def full_propagate_to_sensor(f, utot_dom_set, sensor_greens_function_set, dx, dy
     """
     num_trans = utot_dom_set.shape[2]
     num_rec = sensor_greens_function_set.shape[2]
-    contSrc = f[0, 0].unsqueeze(-1) * utot_dom_set    # (Ny x Nx x numTrans)
-    conjSrc = torch.conj(contSrc).reshape(-1, num_trans)    # (Ny x Nx, numTrans)
+    # Batched over the leading dimension of `f`. The previous form indexed `f[0, 0]`, so a
+    # batch of inputs silently produced a single observation from the first element only.
+    contSrc = f[:, 0].unsqueeze(-1) * utot_dom_set    # (B x Ny x Nx x numTrans)
+    conjSrc = torch.conj(contSrc).reshape(f.shape[0], -1, num_trans)    # (B, Ny x Nx, numTrans)
     sensor_greens_func = sensor_greens_function_set.reshape(-1, num_rec)    # (Ny x Nx, numRec)
-    uscat_pred_set = dx * dy * torch.matmul(conjSrc.T, sensor_greens_func)    # (numTrans, numRec)
+    uscat_pred_set = dx * dy * torch.matmul(conjSrc.mT, sensor_greens_func)    # (B, numTrans, numRec)
     return uscat_pred_set
 
 
@@ -396,7 +398,7 @@ class InverseScatter(BaseOperator):
         # Linear inverse scattering
         uscat_pred_set = full_propagate_to_sensor(f, self.uinc_dom_set[..., 0], self.sensor_greens_function_set[..., 0], 
                                                   self.dx, self.dy)
-        return uscat_pred_set.unsqueeze(0)
+        return uscat_pred_set
     
     def loss(self, pred, observation):
         '''
