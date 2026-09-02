@@ -24,11 +24,13 @@ class KPSAlgo(Algo):
     prior_mode      "particles" (ensemble covariance) or "gradient" (analytic, via vjp).
     slope_mode      "particles" (statistical linear regression) or "gradient" (Jacobian).
     solve_iter      Krylov iterations in the Kalman solve.
-    ridge_x         Ridge on the state covariance. Unused by GIPLF, whose slope is an
-                    autodiff Jacobian and never forms Cxx. Absolute, not relative to data
-                    scale, and marginal at 1e-6 in float32 -- raise it if the inverse
-                    asserts 'not positive definite'.
-    ridge_y         Ridge on the residual covariance. Same caveat.
+    ridge_x         Ridge on the state covariance. None (default) uses the smallest
+                    eigenvalue above the numerical rank tolerance -- scale-free and
+                    precision-free. Unused by GIPLF, whose slope is an autodiff Jacobian
+                    and never forms Cxx.
+    ridge_y         Floor on the observation-noise covariance. None (default) uses
+                    mean(dR^2), the ML estimate of the noise variance from the regression
+                    residual, which tracks the data scale on its own.
     importance      Importance-sample the returned particle instead of taking x_k[0].
 
     The (prior_mode, slope_mode) pair selects the update:
@@ -48,8 +50,8 @@ class KPSAlgo(Algo):
         prior_mode: str = "particles",
         slope_mode: str = "particles",
         solve_iter: int = 2,
-        ridge_x: float = 1e-6,
-        ridge_y: float = 1e-6,
+        ridge_x: Optional[float] = None,
+        ridge_y: Optional[float] = None,
         importance: bool = True,
         **kwargs,
     ):

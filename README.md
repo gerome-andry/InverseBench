@@ -115,7 +115,7 @@ a black box. That decides which variants each problem supports:
 | problem | `kpsp` / `kpsh` | `kpsg` | why |
 |---|---|---|---|
 | navier-stokes | yes | **no** | the operator is `@torch.no_grad()`, so `vjp` returns zero *silently* -- the run completes and yields unconditional prior samples |
-| inv-scatter | yes | impractical | the forward contains a CG solve of up to 1000 iterations, nested over frequencies and transmissions; reverse mode tapes all of it |
+| inv-scatter | yes | see note | the forward is the linear Born approximation -- a single complex matmul against the precomputed incident field, so it differentiates cheaply. `forward_prop`/`pcg_wrap` exist in the module but are not on this path |
 | blackhole | yes | **yes** | pure-torch measurement chain, no control flow, 64x64 state -- the one cheap `kpsg` target |
 
 #### Black hole environment
