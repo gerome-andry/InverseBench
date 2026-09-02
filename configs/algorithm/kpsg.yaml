@@ -10,4 +10,10 @@ method:
   num_particles: 64
   prior_mode: "gradient"
   slope_mode: "gradient"
+
+  # Importance weights degenerate for GIPLF on Dy >> N problems: its slope is the exact
+  # Jacobian, so dR is pure observation noise and tau is the smallest of the three
+  # methods, which saturates the softmax (measured ESS 1.00 of 64 on inv-scatter, and
+  # -5.3 dB PSNR). Weight collapse in high observation dimension is expected, not a bug.
+  importance: False
  
