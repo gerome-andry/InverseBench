@@ -1,5 +1,6 @@
 # algo/kps.py
 
+import os
 import torch
 
 from torch import Tensor
@@ -56,6 +57,11 @@ class KPSAlgo(Algo):
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)
+
+        if os.environ.get("KPS_PROBE"):
+            import kps_probe
+
+            kps_probe.arm()
 
         self.num_steps = num_steps
         self.num_particles = num_particles if num_particles else 2
@@ -123,6 +129,14 @@ class KPSAlgo(Algo):
             num_particles=self.num_particles,
         )
 
-        x1 = sampler.init((num_samples, *self.net.shape), device=device)
+        self._last_update = post_update
 
-        return sampler(x1)
+        x1 = sampler.init((num_samples, *self.net.shape), device=device)
+        x0 = sampler(x1)
+
+        if os.environ.get("KPS_PROBE"):
+            import kps_probe
+
+            kps_probe.report(self)
+
+        return x0
