@@ -63,7 +63,8 @@ def arm():
                 dX=dX.pow(2).mean().sqrt().item(),
                 dY=dY.pow(2).mean().sqrt().item(),
                 dR=dR.pow(2).mean().sqrt().item(),
-                rx=rx.item(), ry=dR.pow(2).mean().item(),
+                rx=float(self.ridge_x) if self.ridge_x is not None else rx.item(),
+                ry=float(S.omega.r.lmbda),
                 cond=(w.max() / rx).item(),
                 fin=int(_f(x_k)) * 10 + int(_f(y_k)),
             ))
@@ -71,10 +72,13 @@ def arm():
 
     def iterate(self, x, prior):
         out = _orig_iter(self, x, prior)
-        if _ROWS and "rel" not in _ROWS[-1]:
+        if _ROWS and "step_rel" not in _ROWS[-1]:
             with torch.no_grad():
-                d = (out.unsqueeze(0) - x)
-                _ROWS[-1]["step_rel"] = (d.norm() / x.norm().clamp(min=1e-30)).item()
+                # the update applied to particle 0, not the spread of the cloud around it.
+                # Exact when importance=False (select returns x_k[0]); when importance is on,
+                # `out` is a resampled particle so this also picks up the swap.
+                d = out - x[0]
+                _ROWS[-1]["step_rel"] = (d.norm() / x[0].norm().clamp(min=1e-30)).item()
         return out
 
     U.PosteriorUpdate.linearize = linearize
