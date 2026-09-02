@@ -51,7 +51,13 @@ def arm():
             rank = int((w > tol).sum(-1).float().median())
             rx = torch.where(w > tol, w, torch.full_like(w, torch.inf)).min()
             dR = dY - S.A(dX)
+            # posterior-predictive misfit: how well the particles reproduce the data.
+            # This is the well-posed objective -- many x explain the same y, so x-accuracy
+            # is not what the sampler is optimising. y_k is already computed, so free.
+            yo = self.y.reshape(1, 1, -1)
+            mis = ((yo - S.y_k).norm(dim=-1) / yo.norm(dim=-1).clamp(min=1e-30))
             _ROWS.append(dict(
+                mis=mis.median().item(), mis_best=mis.min().item(),
                 i=i, rank=f"{rank}/{N}",
                 x=_n(x_k), y=_n(y_k),
                 dX=dX.pow(2).mean().sqrt().item(),
@@ -80,14 +86,17 @@ def report(algo=None):
     if not _ROWS:
         print("no rows recorded")
         return
-    hdr = f"{'lin':>4} {'rank':>8} {'|x|':>10} {'|y|':>10} {'rms dX':>10} {'rms dY':>10} " \
-          f"{'rms dR':>10} {'ridge_x':>10} {'ridge_y':>10} {'cond':>9} {'step/|x|':>9} {'fin':>4}"
+    hdr = f"{'lin':>4} {'rank':>8} {'misfit':>9} {'best':>9} {'|x|':>10} {'rms dX':>10} " \
+          f"{'rms dY':>10} {'rms dR':>10} {'dR/dY':>7} {'ridge_x':>10} {'ridge_y':>10} " \
+          f"{'cond':>9} {'step/|x|':>9} {'fin':>4}"
     print(hdr)
     for r in _ROWS:
-        print(f"{r['i']:>4} {r['rank']:>8} {r['x']:>10.2e} {r['y']:>10.2e} {r['dX']:>10.2e} "
-              f"{r['dY']:>10.2e} {r['dR']:>10.2e} {r['rx']:>10.2e} {r['ry']:>10.2e} "
+        print(f"{r['i']:>4} {r['rank']:>8} {r['mis']:>9.4f} {r['mis_best']:>9.4f} "
+              f"{r['x']:>10.2e} {r['dX']:>10.2e} {r['dY']:>10.2e} {r['dR']:>10.2e} "
+              f"{r['dR'] / max(r['dY'], 1e-30):>7.1%} {r['rx']:>10.2e} {r['ry']:>10.2e} "
               f"{r['cond']:>9.1e} {r.get('step_rel', float('nan')):>9.2e} {r['fin']:>4}")
-    print(f"\nfirst non-finite: {_STATE['first_bad'] or 'none'}")
+    print(f"\nmisfit = ||y - g(x_k)|| / ||y||, median over particles; best = the closest one.")
+    print(f"first non-finite: {_STATE['first_bad'] or 'none'}")
     if algo is not None and getattr(algo, "_last_update", None) is not None:
         tr = getattr(algo._last_update, "ess_trace", [])
         if tr:
