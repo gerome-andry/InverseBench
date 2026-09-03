@@ -42,6 +42,12 @@ class KPSAlgo(Algo):
                     leave it off for Fourier or sensor-indexed observations.
     localize_energy Fraction of the taper's trace the modulators must hold.
     localize_cap    Maximum modulation rank, bounding the (N*r) x (N*r) Gram.
+    impl            "current" or "legacy". "legacy" selects the pre-reorganize update from
+                    kps/legacy.py, unchanged, for A/B comparison. It ignores ridge_y,
+                    importance, localize and step0.
+    step0           "auto" applies the Cyy shortcut only where its derivation holds
+                    (Dy <= N-1, so never on these problems); "always" restores the
+                    pre-guard behaviour; "never" forces the full covariance.
 
     The (prior_mode, slope_mode) pair selects the update:
         (particles, particles) -> PIPLF
@@ -66,6 +72,8 @@ class KPSAlgo(Algo):
         localize: bool = False,
         localize_energy: float = 0.99,
         localize_cap: int = 64,
+        step0: str = "auto",
+        impl: str = "current",
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)
@@ -85,6 +93,8 @@ class KPSAlgo(Algo):
         self.localize = localize
         self.localize_energy = localize_energy
         self.localize_cap = localize_cap
+        self.step0 = step0
+        self.impl = impl
         self.gibbs_iter = gibbs_iter
 
         updates = {
@@ -98,7 +108,19 @@ class KPSAlgo(Algo):
                 f"No update for prior_mode={prior_mode!r}, slope_mode={slope_mode!r}."
             )
 
-        self.update = updates[prior_mode, slope_mode]
+        key = {v: k for k, v in {"PIPLF": ("particles", "particles"),
+                                 "HIPLF": ("gradient", "particles"),
+                                 "GIPLF": ("gradient", "gradient")}.items()}
+
+        if impl == "legacy":
+            # the pre-reorganize implementation, for A/B only -- see kps/legacy.py
+            from kps.legacy import legacy_update
+
+            self.update = legacy_update(key[prior_mode, slope_mode])
+        elif impl == "current":
+            self.update = updates[prior_mode, slope_mode]
+        else:
+            raise NotImplementedError(f"Unknown impl {impl!r}; expected 'current' or 'legacy'.")
 
         # Convert the InverseBench net into an azula Denoiser once, at construction.
         # The noise range comes from the net, since it differs per preconditioner.
@@ -142,6 +164,7 @@ class KPSAlgo(Algo):
             posterior_iter=self.posterior_iter,
             ridge_x=self.ridge_x,
             ridge_y=self.ridge_y,
+            step0=self.step0,
             importance=self.importance,
         )
 

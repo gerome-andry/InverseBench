@@ -10,4 +10,8 @@ method:
   num_particles: 64
   prior_mode: "gradient"
   slope_mode: "particles"
- 
+
+  # Importance weights degenerate at these observation dimensions: measured ESS 1.00 of 64
+  # on inv-scatter, i.e. every selection collapses onto a single particle. Expected -- weight
+  # collapse is exponential in observation dimension (Bickel/Li/Bengtsson 2008; Snyder 2008).
+  importance: False
