@@ -33,6 +33,15 @@ class KPSAlgo(Algo):
                     mean(dR^2), the ML estimate of the noise variance from the regression
                     residual, which tracks the data scale on its own.
     importance      Importance-sample the returned particle instead of taking x_k[0].
+    localize        Taper the ensemble covariances by grid distance. Any slope fitted from
+                    N members has rank <= N-1; tapering multiplies that rank (Schur product
+                    theorem) at no extra likelihood cost. Applied by modulation, so nothing
+                    of size D x D is formed. Radius and modulation rank are read from the
+                    data. Unused by GIPLF, whose slope is already full rank.
+                    Only meaningful when the observation shares the state's grid geometry --
+                    leave it off for Fourier or sensor-indexed observations.
+    localize_energy Fraction of the taper's trace the modulators must hold.
+    localize_cap    Maximum modulation rank, bounding the (N*r) x (N*r) Gram.
 
     The (prior_mode, slope_mode) pair selects the update:
         (particles, particles) -> PIPLF
@@ -54,6 +63,9 @@ class KPSAlgo(Algo):
         ridge_x: Optional[float] = None,
         ridge_y: Optional[float] = None,
         importance: bool = True,
+        localize: bool = False,
+        localize_energy: float = 0.99,
+        localize_cap: int = 64,
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)
@@ -70,6 +82,9 @@ class KPSAlgo(Algo):
         self.ridge_x = ridge_x
         self.ridge_y = ridge_y
         self.importance = importance
+        self.localize = localize
+        self.localize_energy = localize_energy
+        self.localize_cap = localize_cap
         self.gibbs_iter = gibbs_iter
 
         updates = {
@@ -110,7 +125,17 @@ class KPSAlgo(Algo):
             def likelihood(x: Tensor) -> Tensor:
                 return self.forward_op({"target": x}).to(torch.float32)
 
+        # localization needs the state grid; the observation is only tapered when it is a
+        # field of the same shape, which the caller asserts by matching dimensions
+        loc = {}
+        if self.localize:
+            gs = tuple(self.net.shape)
+            same = obs_in.numel() == int(torch.tensor(gs).prod())
+            loc = dict(modulation="auto", grid_shape=gs, obs_shape=gs if same else None,
+                       localize_energy=self.localize_energy, localize_cap=self.localize_cap)
+
         post_update = self.update(
+            **loc,
             y=obs_in,
             likelihood=likelihood,
             solve_iter=self.solve_iter,
