@@ -32,7 +32,24 @@ class KPSAlgo(Algo):
     ridge_y         Floor on the observation-noise covariance. None (default) uses
                     mean(dR^2), the ML estimate of the noise variance from the regression
                     residual, which tracks the data scale on its own.
-    importance      Importance-sample the returned particle instead of taking x_k[0].
+    importance      Importance-sample the cloud. With `maintain` this is SIR over the whole
+                    ensemble (`select_all`), which is what carries calibration; without it,
+                    one particle is drawn and the rest discarded.
+    maintain        Keep one persistent ensemble across the trajectory instead of rebuilding
+                    it from a single x_t at every step. Every particle persists and is
+                    returned, so the output is N samples rather than a point estimate. A
+                    conditional cloud degenerates as t -> 0: its width is set by the
+                    schedule, so dY eventually falls below the observation noise and the
+                    regression fits noise (measured dR/dY 7% -> 113% on navier-stokes).
+    resample_noise  Whether each sweep redraws the particle's noise. False keeps it, shifting
+                    x_t by alpha_t * (x_new - x). Only meaningful with `maintain`.
+    cov_mode        How the analytic prior covariance is taken with a maintained cloud.
+                    "point" linearises at the cloud mean; "ensemble" averages the Tweedie
+                    covariance over every particle, as GIPLF already does for its Jacobian.
+                    Unused by PIPLF, which never calls cov_x.
+    inner_steps_factor
+                    Divides the inner denoising depth. A maintained cloud does not need an
+                    accurate redraw of p(x0|x_t), so 4 measured 2.1x cheaper at equal quality.
 
     The (prior_mode, slope_mode) pair selects the update:
         (particles, particles) -> PIPLF
@@ -54,6 +71,10 @@ class KPSAlgo(Algo):
         ridge_x: Optional[float] = None,
         ridge_y: Optional[float] = None,
         importance: bool = True,
+        maintain: bool = False,
+        resample_noise: bool = True,
+        cov_mode: str = "point",
+        inner_steps_factor: int = 1,
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)
@@ -70,6 +91,10 @@ class KPSAlgo(Algo):
         self.ridge_x = ridge_x
         self.ridge_y = ridge_y
         self.importance = importance
+        self.maintain = maintain
+        self.resample_noise = resample_noise
+        self.cov_mode = cov_mode
+        self.inner_steps_factor = inner_steps_factor
         self.gibbs_iter = gibbs_iter
 
         updates = {
@@ -118,13 +143,17 @@ class KPSAlgo(Algo):
             ridge_x=self.ridge_x,
             ridge_y=self.ridge_y,
             importance=self.importance,
+            return_all=self.maintain,
         )
 
         sampler = PosteriorGibbsSampler(
             denoiser=self.denoiser,
             posterior_update=post_update,
             gibbs_iter=self.gibbs_iter,
-            inner_steps_factor=1,
+            inner_steps_factor=self.inner_steps_factor,
+            maintain=self.maintain,
+            resample_noise=self.resample_noise,
+            cov_mode=self.cov_mode,
             steps=self.num_steps,
             num_particles=self.num_particles,
         )
