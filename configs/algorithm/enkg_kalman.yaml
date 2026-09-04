@@ -1,0 +1,15 @@
+name: EnKGKalman
+method:
+  _target_: algo.enkg_kalman.EnKGKalman
+  guidance_scale: 2.0
+  num_updates: 2
+  num_steps: 80
+  num_samples: 2048
+  sigma_max: 80.0
+  sigma_min: 0.002
+  threshold: 0.1
+  batch_size: 64
+  rho: 7
+  factor: 8
+  alpha: 1.0
+  normalize: True

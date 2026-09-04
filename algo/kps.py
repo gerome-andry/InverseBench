@@ -9,7 +9,7 @@ from typing import Optional
 from algo.azula_bridge import EDMNetDenoiser
 from algo.base import Algo
 from kps.sampler import PosteriorGibbsSampler
-from kps.update import GIPLFUpdate, HIPLFUpdate, PIPLFUpdate
+from kps.update import GIPLFUpdate, HIPLFUpdate, PGIPLFUpdate, PIPLFUpdate
 
 
 class KPSAlgo(Algo):
@@ -73,6 +73,12 @@ class KPSAlgo(Algo):
         localize_energy: float = 0.99,
         localize_cap: int = 64,
         step0: str = "auto",
+        max_step: Optional[float] = None,
+        damping: str = "none",
+        maintain: bool = False,
+        inner_steps_factor: int = 1,
+        resample_noise: bool = True,
+        cov_mode: str = "point",
         impl: str = "current",
         **kwargs,
     ):
@@ -94,6 +100,12 @@ class KPSAlgo(Algo):
         self.localize_energy = localize_energy
         self.localize_cap = localize_cap
         self.step0 = step0
+        self.max_step = max_step
+        self.damping = damping
+        self.maintain = maintain
+        self.inner_steps_factor = inner_steps_factor
+        self.resample_noise = resample_noise
+        self.cov_mode = cov_mode
         self.impl = impl
         self.gibbs_iter = gibbs_iter
 
@@ -101,6 +113,9 @@ class KPSAlgo(Algo):
             ("particles", "particles"): PIPLFUpdate,
             ("gradient", "particles"): HIPLFUpdate,
             ("gradient", "gradient"): GIPLFUpdate,
+            # particle prior + exact Jacobian slope: needs no linearisation point,
+            # so it is the combination compatible with a maintained cloud
+            ("particles", "gradient"): PGIPLFUpdate,
         }
 
         if (prior_mode, slope_mode) not in updates:
@@ -166,13 +181,19 @@ class KPSAlgo(Algo):
             ridge_y=self.ridge_y,
             step0=self.step0,
             importance=self.importance,
+            max_step=self.max_step,
+            damping=self.damping,
+            return_all=self.maintain,
         )
 
         sampler = PosteriorGibbsSampler(
             denoiser=self.denoiser,
             posterior_update=post_update,
             gibbs_iter=self.gibbs_iter,
-            inner_steps_factor=1,
+            inner_steps_factor=self.inner_steps_factor,
+            maintain=self.maintain,
+            resample_noise=self.resample_noise,
+            cov_mode=self.cov_mode,
             steps=self.num_steps,
             num_particles=self.num_particles,
         )
