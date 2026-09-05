@@ -1,15 +1,28 @@
 name: KPSP
- 
+
 method:
   _target_: algo.kps.KPSAlgo
-  
-  num_steps: 16
-  
-  solve_iter: 2
-  posterior_iter: 1
-  num_particles: 64
+
   prior_mode: "particles"
   slope_mode: "particles"
+
+  # `num_steps` and the inner depth must scale together. `inner_steps_factor` divides the
+  # *remaining* outer steps, so raising num_steps against a fixed factor silently deepens the
+  # inner DDPM chain -- which took the five-sample navier-stokes mean from 0.139 to 0.507 and
+  # produced two outright failures at an unchanged nominal budget. `inner_depth` pins it.
+  num_steps: 128
+  inner_depth: 3
+
+  num_particles: 512
+  gibbs_iter: 4
+  solve_iter: 4
+  posterior_iter: 1
+
+  # One persistent ensemble across the trajectory, each particle keeping its own noise. A
+  # conditional cloud degenerates as t -> 0: its width is set by the schedule, so dY falls
+  # below the observation noise and the regression fits noise (dR/dY 7% -> 113% on NS).
+  maintain: True
+  resample_noise: False
 
   # Importance weights degenerate at these observation dimensions: measured ESS 1.00 of 64
   # on inv-scatter, i.e. every selection collapses onto a single particle. Expected -- weight

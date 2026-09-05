@@ -47,9 +47,14 @@ class KPSAlgo(Algo):
                     "point" linearises at the cloud mean; "ensemble" averages the Tweedie
                     covariance over every particle, as GIPLF already does for its Jacobian.
                     Unused by PIPLF, which never calls cov_x.
+    inner_depth     Inner DDPM depth, held constant along the trajectory. Prefer this to
+                    `inner_steps_factor`, which divides the *remaining* outer steps: raising
+                    `num_steps` against a fixed factor silently deepens the inner chain, and
+                    on navier-stokes that took the five-sample mean from 0.139 to 0.507 and
+                    produced two outright failures. Depth 3 is the measured setting.
     inner_steps_factor
-                    Divides the inner denoising depth. A maintained cloud does not need an
-                    accurate redraw of p(x0|x_t), so 4 measured 2.1x cheaper at equal quality.
+                    The old divisor. Kept to reproduce earlier runs; scale it with
+                    `num_steps` or use `inner_depth`.
 
     The (prior_mode, slope_mode) pair selects the update:
         (particles, particles) -> PIPLF
@@ -74,7 +79,8 @@ class KPSAlgo(Algo):
         maintain: bool = False,
         resample_noise: bool = True,
         cov_mode: str = "point",
-        inner_steps_factor: int = 1,
+        inner_steps_factor: Optional[int] = None,
+        inner_depth: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)
@@ -95,6 +101,7 @@ class KPSAlgo(Algo):
         self.resample_noise = resample_noise
         self.cov_mode = cov_mode
         self.inner_steps_factor = inner_steps_factor
+        self.inner_depth = inner_depth
         self.gibbs_iter = gibbs_iter
 
         updates = {
@@ -151,6 +158,7 @@ class KPSAlgo(Algo):
             posterior_update=post_update,
             gibbs_iter=self.gibbs_iter,
             inner_steps_factor=self.inner_steps_factor,
+            inner_depth=self.inner_depth,
             maintain=self.maintain,
             resample_noise=self.resample_noise,
             cov_mode=self.cov_mode,
