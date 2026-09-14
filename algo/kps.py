@@ -46,7 +46,8 @@ class KPSAlgo(Algo):
         sigma_min: float = 0.05,
         solve_iter: int = 2,
         churn: float = 0.0,
-        solver: str = "gmres",
+        solver: str = "cg",
+        symmetric_vt: bool = True,
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)
@@ -62,6 +63,7 @@ class KPSAlgo(Algo):
         self.solve_iter = solve_iter
         self.churn = churn
         self.solver = solver
+        self.symmetric_vt = symmetric_vt
 
     def _simulator(self, obs: Tensor):
         r"""Queried WITH observation noise -- the innovation then carries its own correctly
@@ -104,6 +106,7 @@ class KPSAlgo(Algo):
             solve_iter=self.solve_iter,
             churn=self.churn,
             solver=self.solver,
+            symmetric_vt=self.symmetric_vt,
         )
 
         x = sampler.sample(tuple(self.net.shape), device=self.forward_op.device)
