@@ -3,6 +3,14 @@ prior: checkpoints/blackhole-50k.pt
 model:
   _target_: inverse_problems.blackhole.BlackHoleImaging
   root: ../data/blackhole/measure
+  # ehtim's default transform is 'nfft', which needs the optional `pynfft` package. ehtim
+  # imports it lazily and does NOT fail at import time, so a missing pynfft surfaces only when
+  # the forward operator is first called, as
+  #     NameError: name 'NFFT' is not defined
+  # from ehtim/observing/obs_simulate.py. 'direct' is the exact DFT and needs nothing extra;
+  # measured at imsize=64 it costs ~9% over 'fast' (44.6 s vs 40.8 s for a 16x4x2 run), so
+  # there is no reason to trade accuracy for it here. 'fast' (FFT gridding) also works.
+  ttype: 'direct'
   imsize: 64
   observation_time_ratio: 1.0
   noise_type: 'eht'

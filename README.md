@@ -268,4 +268,31 @@ This section contains the solutions to common issues.
 
 **Devito getting stuck?**
 If your code gets stuck at `codepy/jit.py`, 
-run the script [scripts/fwi/clear_devito_cache.py](https://github.com/devitocodes/devito/blob/master/scripts/clear_devito_cache.py) to make sure the cache is in a consistent state.  
+run the script [scripts/fwi/clear_devito_cache.py](https://github.com/devitocodes/devito/blob/master/scripts/clear_devito_cache.py) to make sure the cache is in a consistent state.
+
+**Black hole: `NameError: name 'NFFT' is not defined`?**
+
+```
+File "ehtim/observing/obs_simulate.py", line 318, in sample_vis
+    plan = NFFT([im.xdim, im.ydim], uvdim, m=nker, n=[npad, npad])
+NameError: name 'NFFT' is not defined
+```
+
+ehtim's default transform type is `nfft`, which needs the optional `pynfft` package. ehtim
+imports it lazily and does *not* fail at import time, so a missing `pynfft` only surfaces when
+the forward operator is first called — after the model and dataset have already loaded, which
+makes it look like a problem with the run rather than with the environment.
+
+Fix: use a transform that needs no extra package. `configs/problem/blackhole.yaml` now sets
+
+```yaml
+model:
+  ttype: 'direct'     # 'fast' | 'nfft' | 'direct'
+```
+
+`direct` is the exact DFT. At `imsize: 64` it costs about 9% over `fast` (44.6 s vs 40.8 s for
+a 16 particles x 4 levels x 2 sweeps run), so there is no reason to trade accuracy for speed
+here. `fast` (FFT gridding) also works if you want it; `nfft` requires `pip install pynfft`,
+which in turn needs the NFFT C library.
+
+Override per run with `++problem.model.ttype=fast`.  
