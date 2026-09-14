@@ -19,6 +19,15 @@ method:
   # denoiser. `rank` is unused here.
   solve_iter: 2
 
+  # GMRES, not CG: V_t built from a LEARNED denoiser is measurably non-symmetric (relative
+  # asymmetry of the subspace Gram is up to 11% on the NS prior, worst at the mid levels), and
+  # CG assumes symmetry. The conditioning of A is not the reason -- A V_t A^T + s2 I is
+  # positive definite however ill-conditioned A is.
+  # UNRESOLVED on real data: one NS run gave err 0.989 for gmres vs 0.897 for cg (~2.2 harness
+  # sd), and at solve_iter=2 the solve is a preconditioner for a transport step rather than a
+  # convergence requirement. Settle it on inv-scatter, paired under run_det.py.
+  solver: "gmres" 
+
   draw_steps: 8
 
   sigma_max: 80.0
