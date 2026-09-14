@@ -46,8 +46,8 @@ class KPSAlgo(Algo):
         sigma_min: float = 0.05,
         solve_iter: int = 2,
         churn: float = 0.0,
-        solver: str = "cg",
-        symmetric_vt: bool = True,
+        solver: str = "gmres",
+        symmetric_vt: bool = False,
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)

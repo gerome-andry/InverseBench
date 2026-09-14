@@ -19,17 +19,15 @@ method:
   # denoiser. `rank` is unused here.
   solve_iter: 2
 
-  # V_t is a Jacobian and a learned denoiser's is not symmetric (relative asymmetry of the
-  # subspace Gram up to 11% on the NS prior). The slope is innocent -- A V A^T is symmetric for
-  # any A whenever V is -- so the fix belongs at V_t, and applying (V + V^T)/2 implicitly by
-  # averaging a vjp and a jvp makes the Kalman operator SPD, so CG is valid. Costs one extra
-  # denoiser pass per application; H gets the same correction free in its r x r solve.
-  # Set symmetric_vt=False with solver="gmres" for the cheaper one-sided path. Which transports
-  # better is unresolved: one NS run gave 0.989 one-sided gmres vs 0.897 one-sided cg.
-  symmetric_vt: True
-  solver: "cg"
-
-  draw_steps: 8
-
-  sigma_max: 80.0
-  sigma_min: 0.05
+  # SOLVER. Measured on inv-scatter (N=16, 4 levels, 2 sweeps, one instance):
+  #     symmetric_vt=True   solver=cg      DIVERGED at level 2
+  #     symmetric_vt=True   solver=gmres   psnr 19.020
+  #     symmetric_vt=False  solver=cg      psnr 17.458
+  #     symmetric_vt=False  solver=gmres   psnr 19.329
+  # GMRES wins in both settings and symmetrising does not help, despite the theory saying it
+  # should: V_t is a Jacobian and non-symmetric for a learned denoiser (up to 11%), so
+  # symmetrised-CG ought to be the principled choice. The obvious explanation -- an indefinite
+  # symmetric part -- was tested and NOT confirmed (spectrum strictly positive on random
+  # subspaces). No verified mechanism, only the measurement.
+  symmetric_vt: False
+  solver: "gmres"
