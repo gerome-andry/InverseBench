@@ -10,24 +10,26 @@ method:
 
   mode: "g"
 
-  num_particles: 128
+  # budget = levels * sweeps * num_particles simulator calls
+  # NOTE: G holds the simulator's vjp graph for the whole cloud, so it is far more
+  # memory-hungry than H -- it exhausts a 95 GB card at num_particles=64 on inv-scatter.
+  num_particles: 16
   levels: 4
   sweeps: 4
 
   # G's slope is implicit, so there is no low-rank factorisation: the Kalman inverse is taken
-  # by CG. Each iteration costs a jvp and a vjp through the simulator plus a vjp through the
-  # denoiser. `rank` is unused here.
-  solve_iter: 2
+  # by GMRES, which assumes neither symmetry nor definiteness. V_t is a Jacobian and a learned
+  # denoiser's is non-symmetric by up to 11%, which makes CG diverge outright (relative
+  # residual 0.38 -> 1263 over 32 iterations). CG on the normal equations is stable but loses
+  # the task. `rank` is unused here.
+  #
+  # solve_iter MATTERS MORE THAN ANYTHING ELSE. On inv-scatter (N=16, 4 levels, 2 sweeps):
+  #     solve_iter    2       4       8      16
+  #     psnr        19.33   23.68   27.76   33.97
+  # still climbing at 16. The old default of 2 was badly under-solving.
+  solve_iter: 16
 
-  # SOLVER. Measured on inv-scatter (N=16, 4 levels, 2 sweeps, one instance):
-  #     symmetric_vt=True   solver=cg      DIVERGED at level 2
-  #     symmetric_vt=True   solver=gmres   psnr 19.020
-  #     symmetric_vt=False  solver=cg      psnr 17.458
-  #     symmetric_vt=False  solver=gmres   psnr 19.329
-  # GMRES wins in both settings and symmetrising does not help, despite the theory saying it
-  # should: V_t is a Jacobian and non-symmetric for a learned denoiser (up to 11%), so
-  # symmetrised-CG ought to be the principled choice. The obvious explanation -- an indefinite
-  # symmetric part -- was tested and NOT confirmed (spectrum strictly positive on random
-  # subspaces). No verified mechanism, only the measurement.
-  symmetric_vt: False
-  solver: "gmres"
+  draw_steps: 8
+
+  sigma_max: 80.0
+  sigma_min: 0.05
