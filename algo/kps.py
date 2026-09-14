@@ -16,11 +16,16 @@ class KPSAlgo(Algo):
     inside an annealed split-Gibbs ladder. See the `kps` package for the derivation and for
     the measurements behind each default.
 
-    ONE CLOUD, NOT ONE CLOUD PER SAMPLE. A maintained ensemble is carried through the whole
-    ladder and every particle of it is a posterior sample, so `num_particles` simulator calls
-    per sweep yield `num_particles` samples. The earlier arrangement rebuilt a fresh cloud at
-    every level per requested sample and returned one member of it; the maintained cloud
-    measured 2.7-3.8x better at equal cost.
+    ONE CLOUD, AND ALL OF IT IS THE ANSWER. A maintained ensemble is carried through the whole
+    ladder and every particle of it is a posterior sample, so `inference` returns all
+    `num_particles` of them. The earlier arrangement rebuilt a fresh cloud at every level per
+    requested sample and returned one member of it; the maintained cloud measured 2.7-3.8x
+    better at equal cost.
+
+    `num_samples` IS IGNORED. It is part of the Algo interface and InverseBench passes it, but
+    there is no particles-versus-samples distinction in this method: the ensemble size IS the
+    number of posterior samples, and returning a subset of an interacting cloud would only
+    discard work already paid for. Set `num_particles` to control both.
 
     BUDGET. levels * sweeps * num_particles simulator calls. `draw_steps` buys denoiser
     evaluations, which the benchmark does not count.
@@ -46,6 +51,7 @@ class KPSAlgo(Algo):
         sigma_min: float = 0.05,
         solve_iter: int = 16,
         churn: float = 0.0,
+        progress: bool = True,
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)
@@ -60,6 +66,7 @@ class KPSAlgo(Algo):
         self.sigma_min = sigma_min
         self.solve_iter = solve_iter
         self.churn = churn
+        self.progress = progress
 
     def _simulator(self, obs: Tensor):
         r"""Queried WITH observation noise -- the innovation then carries its own correctly
@@ -83,16 +90,16 @@ class KPSAlgo(Algo):
 
     @torch.no_grad()
     def inference(self, obs: Tensor, num_samples: int = 1) -> Tensor:
-        y, simulate = self._simulator(obs)
+        r"""Returns the whole cloud, (num_particles, *shape). `num_samples` is ignored."""
 
-        n = max(self.num_particles, num_samples)
+        y, simulate = self._simulator(obs)
 
         sampler = KPS(
             EDMPrior(self.net),
             simulate,
             y,
             mode=self.mode,
-            num_particles=n,
+            num_particles=self.num_particles,
             levels=self.levels,
             sweeps=self.sweeps,
             rank=self.rank,
@@ -101,8 +108,7 @@ class KPSAlgo(Algo):
             sigma_min=self.sigma_min,
             solve_iter=self.solve_iter,
             churn=self.churn,
+            progress=self.progress,
         )
 
-        x = sampler.sample(tuple(self.net.shape), device=self.forward_op.device)
-
-        return x[:num_samples]
+        return sampler.sample(tuple(self.net.shape), device=self.forward_op.device)
