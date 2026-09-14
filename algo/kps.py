@@ -1,190 +1,108 @@
 # algo/kps.py
 
-import os
 import torch
 
 from torch import Tensor
-from typing import Optional
 
-from algo.azula_bridge import EDMNetDenoiser
 from algo.base import Algo
-from kps.sampler import PosteriorGibbsSampler
-from kps.update import GIPLFUpdate, HIPLFUpdate, PIPLFUpdate
+from kps import KPS, EDMPrior
 
 
 class KPSAlgo(Algo):
-    """
-    Plug-and-play KPS sampler for InverseBench.
+    r"""KPS for InverseBench.
 
-    Config parameters (configs/algorithm/kps{p,h,g}.yaml)
-    -----------------------------------------------------
-    num_steps       Outer diffusion steps.
-    posterior_iter  Linearisation refinements per posterior update.
-    gibbs_iter      Gibbs sweeps per diffusion step.
-    num_particles   Ensemble size. Drives the rank of the fitted slope.
-    prior_mode      "particles" (ensemble covariance) or "gradient" (analytic, via vjp).
-    slope_mode      "particles" (statistical linear regression) or "gradient" (Jacobian).
-    solve_iter      Krylov iterations in the Kalman solve.
-    ridge_x         Ridge on the state covariance. None (default) uses the smallest
-                    eigenvalue above the numerical rank tolerance -- scale-free and
-                    precision-free. Unused by GIPLF, whose slope is an autodiff Jacobian
-                    and never forms Cxx.
-    ridge_y         Floor on the observation-noise covariance. None (default) uses
-                    mean(dR^2), the ML estimate of the noise variance from the regression
-                    residual, which tracks the data scale on its own.
-    importance      Importance-sample the returned particle instead of taking x_k[0].
-    localize        Taper the ensemble covariances by grid distance. Any slope fitted from
-                    N members has rank <= N-1; tapering multiplies that rank (Schur product
-                    theorem) at no extra likelihood cost. Applied by modulation, so nothing
-                    of size D x D is formed. Radius and modulation rank are read from the
-                    data. Unused by GIPLF, whose slope is already full rank.
-                    Only meaningful when the observation shares the state's grid geometry --
-                    leave it off for Fourier or sensor-indexed observations.
-    localize_energy Fraction of the taper's trace the modulators must hold.
-    localize_cap    Maximum modulation rank, bounding the (N*r) x (N*r) Gram.
-    impl            "current" or "legacy". "legacy" selects the pre-reorganize update from
-                    kps/legacy.py, unchanged, for A/B comparison. It ignores ridge_y,
-                    importance, localize and step0.
-    step0           "auto" applies the Cyy shortcut only where its derivation holds
-                    (Dy <= N-1, so never on these problems); "always" restores the
-                    pre-guard behaviour; "never" forces the full covariance.
+        z_i = x_i + V_t A^T (A V_t A^T + Sigma_y)^-1 (y - Y_i)
 
-    The (prior_mode, slope_mode) pair selects the update:
-        (particles, particles) -> PIPLF
-        (gradient,  particles) -> HIPLF
-        (gradient,  gradient)  -> GIPLF
+    inside an annealed split-Gibbs ladder. See the `kps` package for the derivation and for
+    the measurements behind each default.
+
+    ONE CLOUD, NOT ONE CLOUD PER SAMPLE. A maintained ensemble is carried through the whole
+    ladder and every particle of it is a posterior sample, so `num_particles` simulator calls
+    per sweep yield `num_particles` samples. The earlier arrangement rebuilt a fresh cloud at
+    every level per requested sample and returned one member of it; the maintained cloud
+    measured 2.7-3.8x better at equal cost.
+
+    BUDGET. levels * sweeps * num_particles simulator calls. `draw_steps` buys denoiser
+    evaluations, which the benchmark does not count.
+
+    mode    "h"  slope fitted from the cloud, rank-truncated. Derivative-free.
+            "g"  slope is the simulator's exact Jacobian. Needs a differentiable simulator.
+                 Measured 355x better on inverse scattering and 6.8x worse on Navier-Stokes,
+                 where no linear map represents the dynamics and the fit's implicit
+                 regularisation helps instead.
     """
 
     def __init__(
         self,
         net,
         forward_op,
-        num_steps: int = 100,
-        posterior_iter: int = 2,
-        gibbs_iter: int = 2,
-        num_particles: Optional[int] = None,
-        prior_mode: str = "particles",
-        slope_mode: str = "particles",
+        mode: str = "h",
+        num_particles: int = 128,
+        levels: int = 4,
+        sweeps: int = 4,
+        rank: int = 32,
+        draw_steps: int = 8,
+        sigma_max: float = 80.0,
+        sigma_min: float = 0.05,
         solve_iter: int = 2,
-        ridge_x: Optional[float] = None,
-        ridge_y: Optional[float] = None,
-        importance: bool = True,
-        localize: bool = False,
-        localize_energy: float = 0.99,
-        localize_cap: int = 64,
-        step0: str = "auto",
-        impl: str = "current",
+        churn: float = 0.0,
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)
 
-        if os.environ.get("KPS_PROBE"):
-            import kps_probe
-
-            kps_probe.arm()
-
-        self.num_steps = num_steps
-        self.num_particles = num_particles if num_particles else 2
-        self.posterior_iter = posterior_iter
+        self.mode = mode
+        self.num_particles = num_particles
+        self.levels = levels
+        self.sweeps = sweeps
+        self.rank = rank
+        self.draw_steps = draw_steps
+        self.sigma_max = sigma_max
+        self.sigma_min = sigma_min
         self.solve_iter = solve_iter
-        self.ridge_x = ridge_x
-        self.ridge_y = ridge_y
-        self.importance = importance
-        self.localize = localize
-        self.localize_energy = localize_energy
-        self.localize_cap = localize_cap
-        self.step0 = step0
-        self.impl = impl
-        self.gibbs_iter = gibbs_iter
+        self.churn = churn
 
-        updates = {
-            ("particles", "particles"): PIPLFUpdate,
-            ("gradient", "particles"): HIPLFUpdate,
-            ("gradient", "gradient"): GIPLFUpdate,
-        }
+    def _simulator(self, obs: Tensor):
+        r"""Queried WITH observation noise -- the innovation then carries its own correctly
+        covaried perturbation and no inflation is needed. The noiseless operator is not used.
+        """
 
-        if (prior_mode, slope_mode) not in updates:
-            raise NotImplementedError(
-                f"No update for prior_mode={prior_mode!r}, slope_mode={slope_mode!r}."
-            )
+        if torch.is_complex(obs):                                   # inv-scatter
+            y = torch.cat([obs.real, obs.imag], dim=1).to(torch.float32)
 
-        key = {v: k for k, v in {"PIPLF": ("particles", "particles"),
-                                 "HIPLF": ("gradient", "particles"),
-                                 "GIPLF": ("gradient", "gradient")}.items()}
+            def simulate(x: Tensor) -> Tensor:
+                out = self.forward_op({"target": x})
 
-        if impl == "legacy":
-            # the pre-reorganize implementation, for A/B only -- see kps/legacy.py
-            from kps.legacy import legacy_update
+                return torch.cat([out.real, out.imag], dim=1).to(torch.float32)
+        else:                                                       # navier-stokes, blackhole
+            y = obs.to(torch.float32)
 
-            self.update = legacy_update(key[prior_mode, slope_mode])
-        elif impl == "current":
-            self.update = updates[prior_mode, slope_mode]
-        else:
-            raise NotImplementedError(f"Unknown impl {impl!r}; expected 'current' or 'legacy'.")
+            def simulate(x: Tensor) -> Tensor:
+                return self.forward_op({"target": x}).to(torch.float32)
 
-        # Convert the InverseBench net into an azula Denoiser once, at construction.
-        # The noise range comes from the net, since it differs per preconditioner.
-        self.denoiser = EDMNetDenoiser(net=self.net)
+        return y, simulate
 
     @torch.no_grad()
     def inference(self, obs: Tensor, num_samples: int = 1) -> Tensor:
-        device = self.forward_op.device
+        y, simulate = self._simulator(obs)
 
-        # obs stays a single observation: KPS broadcasts one y over the whole particle
-        # cloud, and every sample is drawn from the posterior for that same observation.
-        if torch.is_complex(obs):
-            # inv_scatter case
-            obs_in = torch.cat([obs.real, obs.imag], dim=1).to(torch.float32)
+        n = max(self.num_particles, num_samples)
 
-            def likelihood(x: Tensor) -> Tensor:
-                y = self.forward_op({"target": x})
-
-                return torch.cat([y.real, y.imag], dim=1).to(torch.float32)
-        else:
-            # blackhole (and NS) — already real
-            obs_in = obs.to(torch.float32)
-
-            def likelihood(x: Tensor) -> Tensor:
-                return self.forward_op({"target": x}).to(torch.float32)
-
-        # localization needs the state grid; the observation is only tapered when it is a
-        # field of the same shape, which the caller asserts by matching dimensions
-        loc = {}
-        if self.localize:
-            gs = tuple(self.net.shape)
-            same = obs_in.numel() == int(torch.tensor(gs).prod())
-            loc = dict(modulation="auto", grid_shape=gs, obs_shape=gs if same else None,
-                       localize_energy=self.localize_energy, localize_cap=self.localize_cap)
-
-        post_update = self.update(
-            **loc,
-            y=obs_in,
-            likelihood=likelihood,
+        sampler = KPS(
+            EDMPrior(self.net),
+            simulate,
+            y,
+            mode=self.mode,
+            num_particles=n,
+            levels=self.levels,
+            sweeps=self.sweeps,
+            rank=self.rank,
+            draw_steps=self.draw_steps,
+            sigma_max=self.sigma_max,
+            sigma_min=self.sigma_min,
             solve_iter=self.solve_iter,
-            posterior_iter=self.posterior_iter,
-            ridge_x=self.ridge_x,
-            ridge_y=self.ridge_y,
-            step0=self.step0,
-            importance=self.importance,
+            churn=self.churn,
         )
 
-        sampler = PosteriorGibbsSampler(
-            denoiser=self.denoiser,
-            posterior_update=post_update,
-            gibbs_iter=self.gibbs_iter,
-            inner_steps_factor=1,
-            steps=self.num_steps,
-            num_particles=self.num_particles,
-        )
+        x = sampler.sample(tuple(self.net.shape), device=self.forward_op.device)
 
-        self._last_update = post_update
-
-        x1 = sampler.init((num_samples, *self.net.shape), device=device)
-        x0 = sampler(x1)
-
-        if os.environ.get("KPS_PROBE"):
-            import kps_probe
-
-            kps_probe.report(self)
-
-        return x0
+        return x[:num_samples]
