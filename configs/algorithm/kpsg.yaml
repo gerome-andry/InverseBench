@@ -10,6 +10,11 @@ method:
 
   mode: "g"
 
+  # REQUIRES A DIFFERENTIABLE SIMULATOR. The blackhole problem's default noise_type='eht' goes
+  # through ehtim (numpy) and cannot be used with this variant -- use kpsh there, or
+  # ++problem.model.noise_type=vis_thermal, which is a torch DFT but a different measurement
+  # model and therefore a different problem.
+
   # budget = levels * sweeps * num_particles simulator calls
   # NOTE: G holds the simulator's vjp graph for the whole cloud, so it is far more
   # memory-hungry than H -- it exhausts a 95 GB card at num_particles=64 on inv-scatter.

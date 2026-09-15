@@ -295,4 +295,21 @@ a 16 particles x 4 levels x 2 sweeps run), so there is no reason to trade accura
 here. `fast` (FFT gridding) also works if you want it; `nfft` requires `pip install pynfft`,
 which in turn needs the NFFT C library.
 
-Override per run with `++problem.model.ttype=fast`.  
+Override per run with `++problem.model.ttype=fast`.
+
+**Black hole with `kpsg`: `Cannot access data pointer of Tensor that doesn't have storage`?**
+
+`kpsg` takes the slope from the simulator's Jacobian by autodiff, so it needs a
+**differentiable** forward model. The blackhole problem's default `noise_type: 'eht'` converts
+to numpy and calls into `ehtim`, so no autodiff slope exists and functorch reports the error
+above. KPS now raises a `NotImplementedError` explaining this instead.
+
+Two options, and they are not equivalent:
+
+- **`algorithm=kpsh`** — fits the slope from the ensemble and treats the simulator as a black
+  box. Same problem, different solver. This is the one to use if you want the benchmark's
+  blackhole problem as defined.
+- **`++problem.model.noise_type=vis_thermal`** (or `gaussian`) — these use a torch DFT
+  (`forward_vis`) and are differentiable, so `kpsg` runs. But this changes the **measurement
+  model**, i.e. the problem, not just the solver. Don't compare numbers from it against
+  `noise_type='eht'` results.  
