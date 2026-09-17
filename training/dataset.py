@@ -186,6 +186,11 @@ class BlackHole(Dataset):
         self.txn = self.env.begin(write=False)
 
     def __getitem__(self, idx):
+        # `id_list` selects a subset, and `idx_map` is what turns a position in that subset
+        # back into an LMDB key. Without this line the key is the POSITION, so id_list='55-55'
+        # returns entry 0 -- every subset of size one returns the same sample. LMDBData does
+        # this correctly; this class did not.
+        idx = self.idx_map(idx)
         key = f'{idx}'.encode('utf-8')
         img_bytes = self.txn.get(key)
         img = np.frombuffer(img_bytes, dtype=np.float64).reshape(1, self.original_resolution, self.original_resolution)
