@@ -1,0 +1,34 @@
+name: KPSD
+
+# D: KPS as a posterior DENOISER. Each particle's answer is E[x | x_t, y] -- its own Tweedie
+# mean, corrected by a Kalman step whose likelihood (A, b, Sigma_y) is fitted from the cloud --
+# and an azula sampler supplies all the dispersion. See kps/denoiser.py for the derivation and
+# for what has and has not been measured about it.
+method:
+  _target_: algo.kpsd.KPSDenoiserAlgo
+
+  # budget = steps * num_particles simulator calls, so 64 * 128 = 8192 matches a
+  # levels=32 x sweeps=2 ladder at the same N.
+  num_particles: 128
+  steps: 64
+
+  rank: 32
+
+  # "h" fits the slope from the cloud (derivative-free, the default). "g" uses the simulator's
+  # exact Jacobian and needs it to be differentiable; on the solvable case G reaches 0.022
+  # against H's 0.154, but that test is linear and flatters the exact slope.
+  mode: "h"
+  solve_iter: 16
+
+  # THE FULL RE-NOISE, not DDPM. azula clips tau = eta (1 - (sigma_s/sigma_t)^2) into [0, 1],
+  # so a large eta saturates tau at 1 and the step becomes x_s = mean + sigma_s eps -- the
+  # split-Gibbs kernel. eta = 1 keeps (sigma_s/sigma_t)^2 of x_t instead and measured 0.952
+  # against 0.705 on one Navier-Stokes instance. Lower it deliberately, not by default.
+  eta: 1e6
+
+  sigma_max: 80.0
+  sigma_min: 0.05
+
+  # Chunk the simulator over particles if it is the memory bottleneck. It is not on any problem
+  # here: the prior draw was, and this variant has no draw. 0 disables.
+  sim_batch: 0
