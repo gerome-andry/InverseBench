@@ -19,8 +19,8 @@ method:
   # NOTE: G holds the simulator's vjp graph for the whole cloud, so it is far more
   # memory-hungry than H -- it exhausts a 95 GB card at num_particles=64 on inv-scatter.
   num_particles: 16
-  levels: 4
-  sweeps: 4
+  levels: 32
+  sweeps: 2
 
   # G's slope is implicit, so there is no low-rank factorisation: the Kalman inverse is taken
   # by GMRES, which assumes neither symmetry nor definiteness. V_t is a Jacobian and a learned
@@ -32,9 +32,9 @@ method:
   #     solve_iter    2       4       8      16
   #     psnr        19.33   23.68   27.76   33.97
   # still climbing at 16. The old default of 2 was badly under-solving.
-  solve_iter: 16
+  solve_iter: 8
 
-  draw_steps: 8
+  draw_steps: 4
 
   sigma_max: 80.0
   sigma_min: 0.05
