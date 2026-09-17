@@ -1,5 +1,5 @@
 name: inverse-scatter-linear
-prior: checkpoints/inv-scatter-5m.pt
+prior: "/mnt/home/gandry/ceph/ibench/ibench_checkpoints/inv-scatter-5m.pt"
 model:
   _target_: inverse_problems.inverse_scatter.InverseScatter
   Lx: 0.18
@@ -16,7 +16,7 @@ model:
 
 data:
   _target_: training.dataset.LMDBData
-  root: ../data/inv-scatter-test
+  root: "/mnt/home/gandry/ceph/ibench/ibench_data/inv-scatter-test"
   resolution: 128
   mean: 0.5
   std: 0.25
@@ -25,4 +25,4 @@ data:
 evaluator:
   _target_: eval.InverseScatter
 
-exp_dir: exps/inference/inv-scatter-linear
+exp_dir: "/mnt/home/gandry/ceph/ibench/ibench_exp/inv-scatter-linear"

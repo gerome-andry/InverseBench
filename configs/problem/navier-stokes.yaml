@@ -1,5 +1,5 @@
 name: navier-stokes-ds2
-prior: checkpoints/ns-5m.pt
+prior: "/mnt/home/gandry/ceph/ibench/ibench_checkpoints/ns-5m.pt"
 model:
   _target_: inverse_problems.navier_stokes.ForwardNavierStokes2d
   forward_time: 1.0
@@ -13,7 +13,7 @@ model:
 
 data:
   _target_: training.dataset.LMDBData
-  root: ../data/navier-stokes-test/Re200.0-t5.0
+  root: "/mnt/home/gandry/ceph/ibench/ibench_data/navier-stokes-test/Re200.0-t5.0"
   resolution: 128
   std: 5.0
   id_list: 0-9
@@ -21,4 +21,4 @@ data:
 evaluator:
   _target_: eval.NavierStokes2d
 
-exp_dir: exps/inference/navier-stokes-ds2
+exp_dir: "/mnt/home/gandry/ceph/ibench/ibench_exp/navier-stokes-ds2"

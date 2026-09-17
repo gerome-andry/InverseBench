@@ -1,8 +1,8 @@
 name: blackhole
-prior: checkpoints/blackhole-50k.pt
+prior: "/mnt/home/gandry/ceph/ibench/ibench_checkpoints/blackhole-50k.pt"
 model:
   _target_: inverse_problems.blackhole.BlackHoleImaging
-  root: ../data/blackhole/measure
+  root: "/mnt/home/gandry/ceph/ibench/ibench_data/blackhole-data/measure"
   # ehtim's default transform is 'nfft', which needs the optional `pynfft` package. ehtim
   # imports it lazily and does NOT fail at import time, so a missing pynfft surfaces only when
   # the forward operator is first called, as
@@ -13,7 +13,7 @@ model:
   ttype: 'direct'
   imsize: 64
   observation_time_ratio: 1.0
-  noise_type: 'eht'
+  noise_type: 'vis_thermal'
   w1: 0
   w2: 1
   w3: 1
@@ -25,7 +25,7 @@ model:
 
 data:
   _target_: training.dataset.BlackHole
-  root: ../data/blackhole/test
+  root: "/mnt/home/gandry/ceph/ibench/ibench_data/blackhole-data/test"
   resolution: 64
   original_resolution: 64
   random_flip: False
@@ -37,4 +37,4 @@ evaluator:
   _target_: eval.BlackHoleEvaluator
 
 
-exp_dir: exps/inference/blackhole
+exp_dir: "/mnt/home/gandry/ceph/ibench/ibench_exp/blackhole"
