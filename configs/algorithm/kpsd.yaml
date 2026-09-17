@@ -12,7 +12,24 @@ method:
   num_particles: 128
   steps: 64
 
+  # Gibbs sweeps at each noise level, as in the ladder: `sweeps - 1` refreshes at fixed sigma
+  # (analyse, re-noise from the analysis point) before advancing. The budget is
+  # steps * sweeps * num_particles, so steps=32 sweeps=2 matches kpsh's levels=32 sweeps=2.
+  # 1 is the plain sampler, one analysis per noise level.
+  sweeps: 1
+
   rank: 32
+
+  # denoiser evaluations for the INNER DRAW. The likelihood is fitted on joint samples
+  # (x_i, h(x_i)) with x_i ~ p(x | x_t,i), so the simulator is called on a manifold point and
+  # never on the Tweedie mean; the Tweedie mean only anchors the step and is where A x + b is
+  # evaluated. Not counted in the simulator budget.
+  probe_steps: 8
+
+  # "iso" is one scalar for Sigma_y, "diag" is per observation channel. Measured on the real
+  # operators: navier-stokes is near isotropic (sd/mean 0.159), blackhole is not at all
+  # (sd/mean 3.19, scalar 24.4 against a median channel of 0.407).
+  sigma_mode: "iso"
 
   # "h" fits the slope from the cloud (derivative-free, the default). "g" uses the simulator's
   # exact Jacobian and needs it to be differentiable; on the solvable case G reaches 0.022
@@ -25,6 +42,10 @@ method:
   # split-Gibbs kernel. eta = 1 keeps (sigma_s/sigma_t)^2 of x_t instead and measured 0.952
   # against 0.705 on one Navier-Stokes instance. Lower it deliberately, not by default.
   eta: 1e6
+
+  # tqdm over the sampler's steps, on by default as in kpsh. The bar counts steps, not sweeps:
+  # one step is one simulator call per particle plus probe_steps denoiser evaluations.
+  progress: True
 
   sigma_max: 80.0
   sigma_min: 0.05
