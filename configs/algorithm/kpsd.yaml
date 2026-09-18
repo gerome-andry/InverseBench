@@ -1,0 +1,45 @@
+name: KPSD
+
+# The posterior-denoiser form: each step returns E[x | x_t, y] per particle with the likelihood
+# (A, b, Sigma_y) fitted from the batch by plain SLR. Here to be compared against KPSH/KPSG,
+# the handcrafted ladder, on the same problems. See the `kpsd` package.
+method:
+  _target_: algo.kpsd.KPSDenoiserAlgo
+
+  num_particles: 128
+  steps: 64
+
+  # "h" is derivative-free and costs ONE simulator call per step, so steps * num_particles
+  # calls -- the ladder's accounting exactly. "g" is the Stein slope and costs
+  # 2 * num_particles * solve_iter jvp/vjp passes over the cloud per step ON TOP of that, so
+  # hundreds of times more; run it at a small num_particles and read its wall time as part of
+  # the result.
+  mode: "h"
+  solve_iter: 8
+
+  # THE INNER DRAW. The likelihood is fitted on (x, y) pairs with x SAMPLED from p(x | x_t) by
+  # this many backward-diffusion steps, not on the Tweedie means -- those are conditional
+  # means, so their cloud carries the spread of the means rather than of x, and the simulator
+  # would be called on a blurry off-manifold state. 1 collapses back to that wrong case.
+  probe_steps: 4
+
+  # ANALYSES PER LEVEL. sweeps=1 advances every step; sweeps>1 re-noises back to the same
+  # level in between, which is the ladder's split-Gibbs inner loop. The simulator budget is
+  # steps * sweeps * num_particles, so this is the knob that matches the ladder's call count:
+  # its gen_N128 is levels 32 * sweeps 2 * N 128 = 8192.
+  sweeps: 2
+
+  # Stabilises the particle slope's inverse: S / (S^2 + ridge * Smax^2) in place of 1/S. Zero
+  # is the plain pseudo-inverse, which INTERPOLATES the cloud whenever D >= N and drives
+  # Sigma_y to rank one. Measured optimum near 0.3 on a solvable D > N problem (energy 0.803
+  # -> 0.177 at N=16). Unused by mode="g".
+  ridge: 0.0
+
+  # Saturating eta clips azula's tau to 1, making every step a full re-noise from the posterior
+  # mean -- the split-Gibbs kernel the ladder uses. eta=1 is ordinary DDPM and measured 0.952
+  # against 0.705 on one Navier-Stokes instance.
+  eta: 1e6
+
+  progress: True
+  sigma_max: 80.0
+  sigma_min: 0.05
