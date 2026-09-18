@@ -39,6 +39,10 @@ class KPSDenoiserAlgo(Algo):
         probe_steps   inner backward-diffusion steps drawing the x each (x, y) pair sits at.
                       1 collapses onto the Tweedie mean, which is the wrong point to call a
                       nonlinear simulator on -- see `kpsd.denoiser.draw`.
+        holdout       folds for the HELD-OUT Sigma_y. The in-sample residual is structurally
+                      zero once N <= D_y (measured 1e-11 on blackhole), so scoring each fold
+                      against a slope fitted without it is what makes Sigma_y a real quantity.
+                      1 reverts to in-sample, as a control.
         solve_iter    Krylov iterations for (A V A^T + Sigma_y)^-1. Costs no simulator calls,
                       but on the ladder's G variant it was worth psnr 19.3 -> 34.0 from 2 to
                       16, so it is not a knob to leave small.
@@ -78,6 +82,7 @@ class KPSDenoiserAlgo(Algo):
         solve_iter: int = 8,
         probe_steps: int = 4,
         sweeps: int = 1,
+        holdout: int = 2,
         ridge: float = 0.0,
         eta: float = 1e6,
         progress: bool = True,
@@ -96,6 +101,7 @@ class KPSDenoiserAlgo(Algo):
         self.solve_iter = solve_iter
         self.probe_steps = probe_steps
         self.sweeps = sweeps
+        self.holdout = holdout
         self.ridge = ridge
         self.eta = eta
         self.progress = progress
@@ -138,7 +144,7 @@ class KPSDenoiserAlgo(Algo):
         prior = EDMNetDenoiser(self.net, sigma_min=self.sigma_min, sigma_max=self.sigma_max)
         cls = KPSDenoiserH if self.mode == "h" else KPSDenoiserG
         post = cls(prior, y, simulate, iterations=self.solve_iter, ridge=self.ridge,
-                   probe_steps=self.probe_steps)
+                   probe_steps=self.probe_steps, holdout=self.holdout)
 
         sampler = DDIMSampler(post, eta=self.eta, steps=self.steps, device=device, silent=True)
         x = torch.randn(self.num_particles, *tuple(self.net.shape),

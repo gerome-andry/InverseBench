@@ -29,6 +29,13 @@ method:
   # its gen_N128 is levels 32 * sweeps 2 * N 128 = 8192.
   sweeps: 2
 
+  # FOLDS FOR THE HELD-OUT Sigma_y. In sample the residual is structurally zero once
+  # N <= D_y -- the fit interpolates the cloud and the update is told the data are noiseless,
+  # which is why ridge 0 collapsed. Scoring each fold against a slope fitted without it
+  # measures the surrogate's generalisation error instead. 2 is the ladder's setting
+  # (kps/fit.py sigma_y); 1 reverts to in-sample as a control.
+  holdout: 2
+
   # Stabilises the particle slope's inverse: S / (S^2 + ridge * Smax^2) in place of 1/S. Zero
   # is the plain pseudo-inverse, which INTERPOLATES the cloud whenever D >= N and drives
   # Sigma_y to rank one. Measured optimum near 0.3 on a solvable D > N problem (energy 0.803
