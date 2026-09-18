@@ -29,11 +29,13 @@ method:
   # its gen_N128 is levels 32 * sweeps 2 * N 128 = 8192.
   sweeps: 2
 
-  # FOLDS FOR THE HELD-OUT Sigma_y. In sample the residual is structurally zero once
-  # N <= D_y -- the fit interpolates the cloud and the update is told the data are noiseless,
-  # which is why ridge 0 collapsed. Scoring each fold against a slope fitted without it
-  # measures the surrogate's generalisation error instead. 2 is the ladder's setting
-  # (kps/fit.py sigma_y); 1 reverts to in-sample as a control.
+  # FOLDS FOR THE HELD-OUT Sigma_y. Both modes need it, for different reasons. For "h" the
+  # in-sample residual is structurally ZERO once D_y >= N -- the fit interpolates the cloud
+  # and the update is told the data are noiseless, which is why ridge 0 collapsed. For "g" the
+  # slope is not fitted to the pairs, so in-sample looks defensible and measures neutral on a
+  # LINEAR testbed, but on a nonlinear operator each particle's own Jacobian biases the
+  # residual scored at that particle: blackhole cp_chi2 60.6 in sample against 7.2 held out.
+  # 2 is the ladder's setting (kps/fit.py sigma_y); 1 is a control and a trap.
   holdout: 2
 
   # Stabilises the particle slope's inverse: S / (S^2 + ridge * Smax^2) in place of 1/S. Zero

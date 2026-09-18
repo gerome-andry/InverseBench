@@ -39,10 +39,15 @@ class KPSDenoiserAlgo(Algo):
         probe_steps   inner backward-diffusion steps drawing the x each (x, y) pair sits at.
                       1 collapses onto the Tweedie mean, which is the wrong point to call a
                       nonlinear simulator on -- see `kpsd.denoiser.draw`.
-        holdout       folds for the HELD-OUT Sigma_y. The in-sample residual is structurally
-                      zero once N <= D_y (measured 1e-11 on blackhole), so scoring each fold
-                      against a slope fitted without it is what makes Sigma_y a real quantity.
-                      1 reverts to in-sample, as a control.
+        holdout       folds for the HELD-OUT Sigma_y. BOTH modes need it, for different
+                      reasons. mode="h": in sample the residual is structurally ZERO once
+                      D_y >= N, because the fit interpolates the cloud (measured 1e-11 on
+                      blackhole) -- the update is then told the data are noiseless.
+                      mode="g": the slope is not fitted to the pairs, so the in-sample
+                      residual looks defensible, but on a NONLINEAR operator each particle's
+                      own Jacobian biases the residual scored at that particle -- blackhole
+                      cp_chi2 60.6 in sample against 7.2 held out. 1 reverts to in-sample as
+                      a control, and is a trap on both paths.
         solve_iter    Krylov iterations for (A V A^T + Sigma_y)^-1. Costs no simulator calls,
                       but on the ladder's G variant it was worth psnr 19.3 -> 34.0 from 2 to
                       16, so it is not a knob to leave small.
