@@ -70,23 +70,24 @@ class MMPSSimAlgo(Algo):
     def _operator(self, obs: Tensor):
         r"""(y, op) with y packed to real and the operator's no_grad bypassed."""
 
-        op = differentiable(self.forward_op)
-        call = lambda x: op({"target": x})
+        # `raw` and `packed` must not share a name: `raw` is captured by the closures below,
+        # and rebinding that name to the wrapper makes the wrapper call itself.
+        raw = differentiable(self.forward_op)
 
         if torch.is_complex(obs):
             y = torch.cat([obs.real, obs.imag], dim=1).to(torch.float32)
 
-            def op(x: Tensor) -> Tensor:
-                out = call(x)
+            def packed(x: Tensor) -> Tensor:
+                out = raw({"target": x})
 
                 return torch.cat([out.real, out.imag], dim=1).to(torch.float32)
         else:
             y = obs.to(torch.float32)
 
-            def op(x: Tensor) -> Tensor:
-                return call(x).to(torch.float32)
+            def packed(x: Tensor) -> Tensor:
+                return raw({"target": x}).to(torch.float32)
 
-        return y.reshape(1, -1), lambda x: op(x).reshape(x.shape[0], -1)
+        return y.reshape(1, -1), lambda x: packed(x).reshape(x.shape[0], -1)
 
     @torch.no_grad()
     def inference(self, obs: Tensor, num_samples: int = 1) -> Tensor:
