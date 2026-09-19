@@ -6,6 +6,7 @@ from torch import Tensor
 from tqdm.auto import tqdm
 
 from algo.base import Algo
+from algo.undecorate import differentiable
 from algo.azula_bridge import EDMNetDenoiser
 from azula.sample import DDIMSampler
 from kpsd import KPSDenoiserG, KPSDenoiserH
@@ -124,18 +125,22 @@ class KPSDenoiserAlgo(Algo):
         are real-valued.
         """
 
+        # `differentiable` strips Navier-Stokes' @torch.no_grad(), without which
+        # torch.func.vjp returns zeros there instead of raising and mode="g" gets A^T = 0.
+        op = differentiable(self.forward_op)
+
         if torch.is_complex(obs):
             y = torch.cat([obs.real, obs.imag], dim=1).to(torch.float32)
 
             def simulate(x: Tensor) -> Tensor:
-                out = self.forward_op({"target": x})
+                out = op({"target": x})
 
                 return torch.cat([out.real, out.imag], dim=1).to(torch.float32)
         else:
             y = obs.to(torch.float32)
 
             def simulate(x: Tensor) -> Tensor:
-                return self.forward_op({"target": x}).to(torch.float32)
+                return op({"target": x}).to(torch.float32)
 
         return y.reshape(1, -1), simulate
 

@@ -1,0 +1,26 @@
+name: MMPSSIM
+
+# MMPS driven by the forward operator itself. No likelihood estimation of any kind: A is the
+# local Jacobian at each Tweedie mean by jvp/vjp, the innovation is the exact y - h(x_hat), and
+# Sigma_y is the problem's stated noise. Particles are independent. See algo/mmps_sim.py.
+method:
+  _target_: algo.mmps_sim.MMPSSimAlgo
+
+  num_particles: 128
+  steps: 64
+  solve_iter: 8
+
+  # Sigma_y = inflate * noise_var. noise_var defaults to the problem's sigma_noise^2, floored
+  # because a zero Sigma_y makes the gain singular and blackhole ships sigma_noise = 0. The
+  # inflation is the one knob standing in for linearisation error, which has measured several
+  # times larger than the observation noise here.
+  noise_var: null
+  inflate: 1.0
+
+  # eta = 1 is DDPM. The saturating value (1e6) clips azula's tau to 1 and makes every step a
+  # full re-noise from the posterior mean, which is the split-Gibbs kernel the KPS ladder uses.
+  eta: 1.0
+
+  progress: True
+  sigma_max: 80.0
+  sigma_min: 0.05

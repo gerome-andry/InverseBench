@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 
 from algo.base import Algo
+from algo.undecorate import differentiable
 from kps import KPS, EDMPrior
 
 
@@ -112,20 +113,27 @@ class KPSAlgo(Algo):
     def _simulator(self, obs: Tensor):
         r"""Queried WITH observation noise -- the innovation then carries its own correctly
         covaried perturbation and no inflation is needed. The noiseless operator is not used.
+
+        Goes through `differentiable`, which strips the `@torch.no_grad()` that Navier-Stokes
+        puts on its operator. Without it `torch.func.vjp` returns ZEROS there rather than
+        raising, so mode "g" builds A^T = 0 and its update is identically zero -- it does not
+        run at all. Values are unchanged and the other operators are returned untouched.
         """
+
+        op = differentiable(self.forward_op)
 
         if torch.is_complex(obs):                                   # inv-scatter
             y = torch.cat([obs.real, obs.imag], dim=1).to(torch.float32)
 
             def once(x: Tensor) -> Tensor:
-                out = self.forward_op({"target": x})
+                out = op({"target": x})
 
                 return torch.cat([out.real, out.imag], dim=1).to(torch.float32)
         else:                                                       # navier-stokes, blackhole
             y = obs.to(torch.float32)
 
             def once(x: Tensor) -> Tensor:
-                return self.forward_op({"target": x}).to(torch.float32)
+                return op({"target": x}).to(torch.float32)
 
         def simulate(x: Tensor) -> Tensor:
             return _by_chunk(once, x, self.sim_batch)
