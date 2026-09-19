@@ -13,6 +13,29 @@ from azula.linalg.covariance import IsotropicCovariance
 from azula.sample import DDIMSampler
 
 
+class InnovationScale:
+    r"""Keeps azula's own IsotropicCovariance and rewrites its scalar each step.
+
+    Sigma_y = var(y - h(x_hat)) * inflate, read off the innovation MMPS already needs. The
+    covariance stays an `IsotropicCovariance` over a 0-d tensor that is filled in place, so
+    azula's solver sees exactly the type it expects -- passing a bare callable instead gets
+    coerced into `IsotropicCovariance(lmbda=<the callable>)` and fails inside __matmul__.
+    """
+
+    def __init__(self, prior, y, op, inflate: float = 1.0, device=None) -> None:
+        self.prior, self.y, self.op, self.inflate = prior, y, op, inflate
+        self.lmbda = torch.tensor(1.0, device=device)
+        self.cov = IsotropicCovariance(self.lmbda)
+
+    @torch.no_grad()
+    def set(self, x_t: Tensor, t: Tensor) -> float:
+        resid = self.y - self.op(self.prior(x_t, t).mean)
+        var = float(resid.pow(2).mean()) * self.inflate
+        self.lmbda.fill_(max(var, 1e-12))
+
+        return var
+
+
 class MMPSSimAlgo(Algo):
     r"""MMPS driven by the forward operator itself, with the stated observation noise.
 
@@ -36,8 +59,27 @@ class MMPSSimAlgo(Algo):
     exists because the linearisation residual has measured several times larger than the
     observation noise on these problems.
 
-    `noise_var` defaults to the problem's own sigma_noise^2, floored, since a zero Sigma_y
-    makes the gain singular and blackhole ships sigma_noise = 0.
+    SIGMA_Y IS READ OFF THE INNOVATION, which is what `noise_var=None` means and is the
+    default. The stated observation noise is the wrong scale by a mile -- Navier-Stokes ships
+    sigma_noise^2 = 1e-8 while the measured residual variance per component runs 0.1 to 27, so
+    the gain is told the data are perfect and the chain breaks (relative l2 1.225, worse than
+    the prior). Multiplying that tiny number does nothing either: 1x and 1000x measured 1.2250
+    and 1.2253, because both stay far below tr(A V A^T)/D_y.
+
+    And no CONSTANT would work, because the residual moves 250x along the chain:
+
+        sigma        76.4    9.67    2.49    0.46    0.09
+        resid/D_y    26.7    20.5    6.76    1.19    0.106
+        tr AVA/D_y    107    90.1    5.48    0.42    0.059
+
+    so Sigma_y is comparable to A V A^T (ratio 0.22 to 2.8) when set correctly -- it is never
+    negligible and never dominant.
+
+    The innovation MMPS already forms, y - h(x_hat), IS that mismatch, so its variance is
+    Sigma_y, per step, for free. It needs no ensemble and no extra simulator call, and unlike
+    the regression variants it cannot interpolate its way to zero: h(x_hat) has no free
+    parameters. Setting `noise_var` to a number overrides it with a constant, and `inflate`
+    scales whichever is used.
     """
 
     def __init__(
@@ -94,29 +136,36 @@ class MMPSSimAlgo(Algo):
         y, op = self._operator(obs)
         device = self.forward_op.device
 
-        var = self.noise_var
-        if var is None:
-            var = float(getattr(self.forward_op, "sigma_noise", 0.0)) ** 2
-        var = max(var, 1e-8) * self.inflate
-
         prior = EDMNetDenoiser(self.net, sigma_min=self.sigma_min, sigma_max=self.sigma_max)
-        post = MMPSDenoiser(prior, y, op,
-                            IsotropicCovariance(torch.tensor(var, device=device)),
-                            iterations=self.solve_iter)
+
+        scale = None
+        if self.noise_var is None:
+            scale = InnovationScale(prior, y, op, self.inflate, device)
+            cov = scale.cov
+        else:
+            cov = IsotropicCovariance(
+                torch.tensor(max(self.noise_var, 1e-12) * self.inflate, device=device))
+
+        post = MMPSDenoiser(prior, y, op, cov, iterations=self.solve_iter)
 
         sampler = DDIMSampler(post, eta=self.eta, steps=self.steps, device=device, silent=True)
         x = torch.randn(self.num_particles, *tuple(self.net.shape),
                         device=device) * self.sigma_max
 
         ts = sampler.timesteps
-        bar = tqdm(total=self.steps, desc=f"MMPS-sim (var={var:.3g})", unit="step",
+        bar = tqdm(total=self.steps, desc="MMPS-sim", unit="step",
                    leave=False, disable=not self.progress)
 
         for t_cur, t_nxt in zip(ts[:-1], ts[1:]):
             t = torch.tensor(float(t_cur), device=device)
+
+            if scale is not None:
+                scale.set(x, t)
+
             x = sampler.step(x, t, torch.full_like(t, float(t_nxt)))
 
             bar.set_postfix(sigma=f"{float(post.schedule(t)[1].reshape(-1)[0]):.3g}",
+                            sy=f"{float(cov.lmbda) if scale else 0:.3g}",
                             spread=f"{float(x.std(0).mean()):.3g}", refresh=False)
             bar.update(1)
 
