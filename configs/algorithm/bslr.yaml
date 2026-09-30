@@ -1,0 +1,14 @@
+name: BayesSLR
+
+# Bayesian SLR ladder: KPS branch `bayes-slr` (kps/bayes.py, BAYES.md).
+method:
+  _target_: algo.bslr.BayesSLRAlgo
+
+  num_particles: 128   # simulator calls per level
+  levels: 20
+  sweeps: 1
+  folds: 8             # cross-fitting
+  rank: 128            # slope rank cap = denoiser vjps per particle and level
+  draw_steps: 8        # denoiser evaluations per draw of p(x | x_t)
+  sigma_max: 80.0
+  sigma_min: 0.05

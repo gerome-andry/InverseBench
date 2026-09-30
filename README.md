@@ -98,6 +98,20 @@ Check it worked:
 uv run python -c "import kps.sampler, kps.update; print('kps OK')"
 ```
 
+#### Bayesian SLR ladder (branch `bayes-slr`)
+
+Switch **both** repositories to `bayes-slr` (KPS carries `kps/bayes.py`, this fork the adapter
+`algo/bslr.py` and `configs/algorithm/bslr.yaml`), then select `algorithm=bslr`:
+
+```bash
+git -C ../KPS switch bayes-slr && git switch bayes-slr
+uv run python main.py problem=inv-scatter algorithm=bslr pretrain=inv-scatter \
+    algorithm.method.num_particles=128 algorithm.method.levels=20
+```
+
+It returns the whole cloud (`num_particles` samples) and stores the per-level trace (sigma,
+spread, forgetting factor, ridge, slope rank) on `algo.trace`. See `../KPS/BAYES.md`.
+
 #### Running the experiments
 
 Three problems are used to test KPS. `algorithm` is one of `kpsp` (PIPLF), `kpsh` (HIPLF) or
