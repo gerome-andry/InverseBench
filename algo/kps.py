@@ -92,6 +92,7 @@ class KPSAlgo(Algo):
         sim_batch: int = 0,
         draw_batch: int = 0,
         progress: bool = True,
+        holdout: bool = True,
         **kwargs,
     ):
         super().__init__(net, forward_op, **kwargs)
@@ -109,6 +110,7 @@ class KPSAlgo(Algo):
         self.sim_batch = sim_batch
         self.draw_batch = draw_batch
         self.progress = progress
+        self.holdout = holdout
 
     def _simulator(self, obs: Tensor):
         r"""Queried WITH observation noise -- the innovation then carries its own correctly
@@ -162,5 +164,9 @@ class KPSAlgo(Algo):
             churn=self.churn,
             progress=self.progress,
         )
+
+        # the sampler reads this off itself; see kps/sampler.py. holdout=False scores
+        # Sigma_y in sample and is an ablation hook, not a production setting.
+        sampler.holdout = self.holdout
 
         return sampler.sample(tuple(self.net.shape), device=self.forward_op.device)

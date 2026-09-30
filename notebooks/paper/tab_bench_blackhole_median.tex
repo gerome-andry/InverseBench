@@ -1,0 +1,28 @@
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+% CAUTION: these blackhole numbers use noise_type='vis_thermal', NOT the
+% benchmark's 'eht' (our commit b93dfbb, 2026-09-17). That is a different
+% MEASUREMENT MODEL, not just a different solver, so they are not directly
+% comparable with published 'eht' baselines. State this where the table is used.
+\begin{tabular}{llccccc}
+\toprule
+Method & $N$ & PSNR $\uparrow$ & \shortstack{blur PSNR\\$f{=}10$ $\uparrow$} & $\chi^2_{\text{cp}}\to 1$ & $\chi^2_{\text{camp}}\to 1$ & failures \\
+\midrule
+\multicolumn{7}{l}{\emph{published baselines (InverseBench, Table 6, 100\% observation time)}} \\
+SMILI & -- & $22.67 \pm 3.13$ & $27.79 \pm 4.02$ & $1.88 \pm 0.95$ & $17.61 \pm 10.30$ & -- \\
+EHT-Imaging & -- & $24.28 \pm 3.63$ & $28.57 \pm 4.52$ & $1.25 \pm 0.25$ & $1.26 \pm 0.32$ & -- \\
+DPS & -- & $25.86 \pm 3.90$ & $32.94 \pm 6.19$ & $8.76 \pm 37.78$ & $5.46 \pm 24.18$ & -- \\
+LGD & -- & $21.22 \pm 3.64$ & $26.06 \pm 4.98$ & $13.24 \pm 17.23$ & $13.23 \pm 39.11$ & -- \\
+RED-diff & -- & $23.77 \pm 4.13$ & $29.13 \pm 6.22$ & $1.85 \pm 0.94$ & $2.05 \pm 2.36$ & -- \\
+PnP-DM & -- & $26.07 \pm 3.70$ & $32.88 \pm 6.02$ & $1.31 \pm 0.20$ & $1.20 \pm 0.22$ & -- \\
+DAPS & -- & $25.60 \pm 3.64$ & $32.78 \pm 5.68$ & $1.30 \pm 0.32$ & $1.23 \pm 0.53$ & -- \\
+DiffPIR & -- & $25.01 \pm 4.64$ & $31.86 \pm 6.56$ & $3.27 \pm 1.62$ & $2.97 \pm 1.20$ & -- \\
+\midrule
+\multicolumn{7}{l}{\emph{this work}} \\
+\shortstack[l]{KPS-G\\\strut} & \shortstack{16\\\strut} & \shortstack{29.75\\{\tiny[27.07,\,31.94]}} & \shortstack{36.29\\{\tiny[33.71,\,39.77]}} & \shortstack{4.26\\{\tiny[2.31,\,8.09]}} & \shortstack{1.04\\{\tiny[1.01,\,1.11]}} & \shortstack{--\\\strut} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{64\\\strut} & \shortstack{29.05\\{\tiny[26.20,\,31.51]}} & \shortstack{35.11\\{\tiny[31.13,\,38.62]}} & \shortstack{4.33\\{\tiny[2.41,\,13.94]}} & \shortstack{1.47\\{\tiny[1.21,\,1.89]}} & \shortstack{1/100\\\strut} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{128\\\strut} & \shortstack{29.70\\{\tiny[26.44,\,32.15]}} & \shortstack{36.61\\{\tiny[31.82,\,39.60]}} & \shortstack{2.87\\{\tiny[1.83,\,10.81]}} & \shortstack{1.26\\{\tiny[1.10,\,1.47]}} & \shortstack{4/100\\\strut} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{256\\\strut} & \shortstack{30.54\\{\tiny[27.09,\,32.45]}} & \shortstack{37.61\\{\tiny[33.57,\,40.50]}} & \shortstack{2.14\\{\tiny[1.51,\,5.03]}} & \shortstack{1.19\\{\tiny[1.07,\,1.36]}} & \shortstack{4/100\\\strut} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{512\\\strut} & \shortstack{30.61\\{\tiny[27.26,\,32.52]}} & \shortstack{38.39\\{\tiny[34.44,\,41.31]}} & \shortstack{1.75\\{\tiny[1.46,\,3.46]}} & \shortstack{1.13\\{\tiny[1.04,\,1.27]}} & \shortstack{--\\\strut} \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,31 @@
+\small
+% NOTE: sigma_noise = 1e-4 here, not the benchmark's 0.0 (our commit ab79ef2).
+%
+% THE BUDGETS ARE NOT MATCHED, and EnKG's advantage here is largely budget.
+% Counted from algo/enkg.py with the benchmark's own config (num_samples=2048,
+% num_steps=80, num_updates=2, threshold=0.1): 78 guided steps x 2 updates x
+% 2048 particles = 319,488 simulator calls. Ours is T*M*N:
+%     KPS-H N=512  32*2*512 =  32,768   (9.8x fewer than EnKG)
+%     KPS-H N=64   32*2*64  =   4,096   (78x fewer)
+% The other baselines' configs imply 1e5-1e6 calls but their batch_size means
+% different things per algorithm and was NOT verified by reading each loop.
+% State the call counts wherever this table is used.
+\begin{tabular}{llc}
+\toprule
+Method & $N$ & rel.\ $L_2$ $\downarrow$ \\
+\midrule
+\multicolumn{3}{l}{\emph{published baselines (InverseBench, Table 8, $\times 2$, $\sigma=0$)}} \\
+EKI & -- & $0.5770 \pm 0.1380$ \\
+DPS-fGSG & -- & $1.6870 \pm 0.1560$ \\
+DPS-cGSG & -- & $2.2030 \pm 0.3140$ \\
+DPG & -- & $0.3250 \pm 0.1880$ \\
+SCG & -- & $0.9080 \pm 0.6000$ \\
+EnKG & 2048 & $0.1200 \pm 0.0850$ \\
+\midrule
+\multicolumn{3}{l}{\emph{this work}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{64\\\strut} & \shortstack{0.4840\\{\tiny[0.4262,\,0.8099]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{128\\\strut} & \shortstack{0.3623\\{\tiny[0.3003,\,0.5790]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{256\\\strut} & \shortstack{0.2737\\{\tiny[0.1944,\,0.5310]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{512\\\strut} & \shortstack{0.2450\\{\tiny[0.1838,\,0.4398]}} \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,27 @@
+\small
+\begin{tabular}{llcc}
+\toprule
+Method & $N$ & PSNR $\uparrow$ & SSIM $\uparrow$ \\
+\midrule
+\multicolumn{4}{l}{\emph{published baselines (InverseBench, Table 3, 360 receivers)}} \\
+FISTA-TV & -- & $32.13$ & $0.9790$ \\
+DDRM & -- & $32.60$ & $0.9290$ \\
+DDNM & -- & $36.38$ & $0.9350$ \\
+$\Pi$GDM & -- & $27.93$ & $0.8890$ \\
+DPS & -- & $32.06$ & $0.8460$ \\
+LGD & -- & $27.90$ & $0.8120$ \\
+DiffPIR & -- & $34.24$ & $0.9880$ \\
+PnP-DM & -- & $33.91$ & $0.9880$ \\
+DAPS & -- & $34.64$ & $0.9570$ \\
+RED-diff & -- & $36.56$ & $0.9810$ \\
+FPS & -- & $33.24$ & $0.8700$ \\
+MCG-diff & -- & $30.94$ & $0.7510$ \\
+\midrule
+\multicolumn{4}{l}{\emph{this work}} \\
+KPS-G & 16 & $39.52 \pm 2.90$ & $0.9962 \pm 0.0023$ \\
+KPS-H & 64 & $20.53 \pm 4.49$ & $0.7649 \pm 0.1382$ \\
+KPS-H & 128 & $21.38 \pm 4.92$ & $0.7846 \pm 0.1388$ \\
+KPS-H & 256 & $21.80 \pm 5.41$ & $0.7753 \pm 0.1592$ \\
+KPS-H & 512 & $21.64 \pm 5.81$ & $0.7559 \pm 0.1663$ \\
+\bottomrule
+\end{tabular}

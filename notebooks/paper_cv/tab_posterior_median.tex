@@ -1,0 +1,26 @@
+\footnotesize
+\begin{tabular}{llccccc}
+\toprule
+Method & $N$ & \shortstack{particle\\RMSE $\downarrow$} & \shortstack{skill\\$\downarrow$} & \shortstack{CRPS\\$\downarrow$} & \shortstack{spread-skill\\ratio $\to 1$} & \shortstack{90\% coverage\\$\to 0.9$} \\
+\midrule
+\multicolumn{7}{l}{\itshape Black-hole imaging} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{64\\\strut} & \shortstack{0.358\\{\tiny[0.281,\,0.562]}} & \shortstack{0.349\\{\tiny[0.268,\,0.545]}} & \shortstack{0.1098\\{\tiny[0.0848,\,0.1890]}} & \shortstack{0.245\\{\tiny[0.151,\,0.305]}} & \shortstack{0.557\\{\tiny[0.404,\,0.674]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{128\\\strut} & \shortstack{0.321\\{\tiny[0.266,\,0.477]}} & \shortstack{0.312\\{\tiny[0.257,\,0.470]}} & \shortstack{0.1050\\{\tiny[0.0773,\,0.1690]}} & \shortstack{0.214\\{\tiny[0.154,\,0.274]}} & \shortstack{0.537\\{\tiny[0.412,\,0.690]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{256\\\strut} & \shortstack{0.309\\{\tiny[0.245,\,0.457]}} & \shortstack{0.300\\{\tiny[0.237,\,0.444]}} & \shortstack{0.1043\\{\tiny[0.0723,\,0.1418]}} & \shortstack{0.209\\{\tiny[0.150,\,0.277]}} & \shortstack{0.539\\{\tiny[0.415,\,0.688]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{512\\\strut} & \shortstack{0.321\\{\tiny[0.245,\,0.454]}} & \shortstack{0.308\\{\tiny[0.236,\,0.432]}} & \shortstack{0.0988\\{\tiny[0.0737,\,0.1347]}} & \shortstack{0.260\\{\tiny[0.179,\,0.323]}} & \shortstack{0.549\\{\tiny[0.402,\,0.685]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{16\\\strut} & \shortstack{0.684\\{\tiny[0.521,\,0.855]}} & \shortstack{0.529\\{\tiny[0.415,\,0.690]}} & \shortstack{0.1352\\{\tiny[0.1106,\,0.1668]}} & \shortstack{0.879\\{\tiny[0.740,\,1.039]}} & \shortstack{0.732\\{\tiny[0.647,\,0.811]}} \\
+\midrule
+\multicolumn{7}{l}{\itshape Inverse scattering} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{64\\\strut} & \shortstack{0.343\\{\tiny[0.313,\,0.364]}} & \shortstack{0.335\\{\tiny[0.303,\,0.356]}} & \shortstack{0.1287\\{\tiny[0.0863,\,0.1580]}} & \shortstack{0.238\\{\tiny[0.179,\,0.315]}} & \shortstack{0.675\\{\tiny[0.152,\,0.855]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{128\\\strut} & \shortstack{0.291\\{\tiny[0.253,\,0.305]}} & \shortstack{0.278\\{\tiny[0.238,\,0.292]}} & \shortstack{0.1023\\{\tiny[0.0688,\,0.1202]}} & \shortstack{0.302\\{\tiny[0.267,\,0.357]}} & \shortstack{0.704\\{\tiny[0.261,\,0.860]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{256\\\strut} & \shortstack{0.228\\{\tiny[0.190,\,0.246]}} & \shortstack{0.217\\{\tiny[0.179,\,0.234]}} & \shortstack{0.0803\\{\tiny[0.0522,\,0.0924]}} & \shortstack{0.336\\{\tiny[0.310,\,0.366]}} & \shortstack{0.630\\{\tiny[0.192,\,0.864]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{512\\\strut} & \shortstack{0.162\\{\tiny[0.126,\,0.182]}} & \shortstack{0.154\\{\tiny[0.117,\,0.171]}} & \shortstack{0.0565\\{\tiny[0.0316,\,0.0686]}} & \shortstack{0.345\\{\tiny[0.320,\,0.409]}} & \shortstack{0.756\\{\tiny[0.234,\,0.892]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{16\\\strut} & \shortstack{0.040\\{\tiny[0.035,\,0.044]}} & \shortstack{0.033\\{\tiny[0.028,\,0.037]}} & \shortstack{0.0097\\{\tiny[0.0071,\,0.0124]}} & \shortstack{0.722\\{\tiny[0.683,\,0.767]}} & \shortstack{0.874\\{\tiny[0.829,\,0.910]}} \\
+\midrule
+\multicolumn{7}{l}{\itshape Navier--Stokes} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{64\\\strut} & \shortstack{0.921\\{\tiny[0.853,\,1.031]}} & \shortstack{0.859\\{\tiny[0.822,\,0.931]}} & \shortstack{0.5914\\{\tiny[0.5130,\,0.6680]}} & \shortstack{0.156\\{\tiny[0.056,\,0.508]}} & \shortstack{0.149\\{\tiny[0.076,\,0.541]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{128\\\strut} & \shortstack{0.616\\{\tiny[0.527,\,0.794]}} & \shortstack{0.615\\{\tiny[0.525,\,0.792]}} & \shortstack{0.4308\\{\tiny[0.3688,\,0.5720]}} & \shortstack{0.075\\{\tiny[0.069,\,0.089]}} & \shortstack{0.105\\{\tiny[0.084,\,0.139]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{256\\\strut} & \shortstack{0.293\\{\tiny[0.240,\,0.768]}} & \shortstack{0.287\\{\tiny[0.235,\,0.765]}} & \shortstack{0.1794\\{\tiny[0.1512,\,0.5400]}} & \shortstack{0.203\\{\tiny[0.133,\,0.250]}} & \shortstack{0.276\\{\tiny[0.141,\,0.312]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{512\\\strut} & \shortstack{0.218\\{\tiny[0.180,\,0.495]}} & \shortstack{0.208\\{\tiny[0.173,\,0.488]}} & \shortstack{0.1254\\{\tiny[0.1043,\,0.3204]}} & \shortstack{0.262\\{\tiny[0.176,\,0.305]}} & \shortstack{0.356\\{\tiny[0.221,\,0.393]}} \\
+\bottomrule
+\end{tabular}

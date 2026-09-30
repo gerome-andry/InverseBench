@@ -1,0 +1,33 @@
+name: KPSGF
+
+# Variant G in the same formulation as kpscv: A and Sigma_y are the only things that differ
+# between the variants, and both come from the cloud with no tuned repairs.
+#
+#   A    the simulator's ENSEMBLE-AVERAGED Jacobian (1/N) sum_j J_j, applied implicitly
+#   S_y  R^T R / n from G's OWN linearisation residual, FULL matrix, used whole
+#
+# slope='mean' is ONE affine surrogate for the whole cloud, symmetric with kpscv's fitted one,
+# and R prices that surrogate. slope='particle' is the block-diagonal J_i the ladder kpsg runs:
+# N surrogates, one per particle, and then R prices the cloud radius rather than the step. The
+# average costs N jvps/vjps per solver application instead of one. Runs published before
+# 2026-09-25 (gen_gf) used 'particle'.
+#
+# No ridge (nothing is estimated from the cloud), no df correction (A never sees y, so df = 0),
+# no shrinkage and no floor -- kpscv's S_y is rank <= N-1 in D_y = 2004 too and carries none.
+# Sigma = A V_t A^T + S_y is in fact full rank here because G's A is, so GMRES takes it
+# directly; kpscv needs its reduced basis only because its A is rank k.
+#
+# The reference is `kpscv`, not the ladder `kpsg`. See ridge_slr/RESULTS_BLACKHOLE.md.
+method:
+  _target_: algo.kpscv.KPSCVAlgo
+  mode: "g"
+  slope: "mean"
+
+  num_particles: 16
+  levels: 32
+  sweeps: 2
+  draw_steps: 4
+  solve_iter: 8
+
+  sigma_max: 80.0
+  sigma_min: 0.05

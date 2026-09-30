@@ -1,0 +1,238 @@
+% =====================================================================
+% Self-contained method appendix for KPS.
+% Replaces, in the current draft, the five top-level sections
+%   \section{Annealed conditional chain}            appendice:annealed
+%   \section{Gaussian surrogate}                    appendice:surrogate
+%   \section{Ensemble realization of the Kalman update}  appendice:ensemble
+%   \section{Gibbs loop at fixed noise level}       appendice:gibbs
+%   \section{Variants and cost}                     appendice:variants
+% with ONE section and eight subsections. Every existing \label is kept,
+% so no \ref in the main text breaks. One label is new:
+%   appendice:prior_moments  -- derives V_t, which Section 4.2 currently
+%   sources from the MMPS baseline appendix (appendices:MMPS).
+%
+% Place immediately after \appendix.
+% =====================================================================
+
+\section{The KPS update in detail} \label{appendice:method}
+
+\subsection{Annealed conditional chain} \label{appendice:annealed}
+
+Discretize the reverse dynamics of \Eqref{eq:generative_SDE} over the schedule
+$0 = t_0 < \dots < t_T = 1$ and write the resulting Markov chain, which runs from noise
+$x_T$ down to the clean variable $x_0 = x$, as
+$p(x_{0:T}) = p(x_T)\prod_{k=1}^{T} p(x_{k-1}\mid x_k)$. Conditioning the whole path on $y$
+multiplies it by $p(y\mid x)/p(y)$, and that ratio telescopes along the chain,
+\begin{equation} \label{eq:telescope}
+    \frac{p(y \mid x_0)}{p(y)}
+    = \frac{p(y \mid x_T)}{p(y)} \prod_{k=1}^{T} \frac{p(y \mid x_{k-1})}{p(y \mid x_k)} .
+\end{equation}
+Because the chain is Markov, $x_k$ is independent of $x_0$, hence of $y$, given $x_{k-1}$, so
+each factor of the product combines with the corresponding transition into a conditional one,
+\begin{equation} \label{eq:cond_transition}
+    p(x_{k-1} \mid x_k, y)
+    = p(x_{k-1} \mid x_k) \, \frac{p(y \mid x_{k-1})}{p(y \mid x_k)} .
+\end{equation}
+The leading factor of \Eqref{eq:telescope} is $p(y \mid x_T)/p(y)$, which is where
+\Eqref{eq:annealed_chain} becomes an approximation: at the highest noise level $x_T$ carries
+almost no information about $y$, the ratio is close to $1$, and we replace $p(x_T \mid y)$ by
+the reference $p(x_T) \approx \mathcal{N}(0, \Sigma_1)$. No other term is approximated, and no
+term couples non-adjacent levels.
+
+The decomposition of \Eqref{eq:transition_decomposition} follows by marginalizing over the clean
+variable, $p(x_{k-1} \mid x_k, y) = \int p(x \mid x_k, y)\, p(x_{k-1} \mid x, x_k, y)\,\mathrm{d}x$,
+and dropping $y$ from the second factor, which is legitimate since $x_{k-1}$ is conditionally
+independent of $y$ given $x$. That second factor is the diffusion bridge, available in closed
+form from \Eqref{eq:transition_kernel_diffusion}, so the only object left to approximate is the
+local posterior of \Eqref{eq:inner_target}.
+
+\subsection{Prior-factor moments} \label{appendice:prior_moments}
+
+The mean and covariance of \Eqref{eq:surrogate_prior} both come from the denoiser. Rearranging
+\Eqref{eq:first_order_Tweedie} gives
+$\mathbb{E}[x \mid x_t] = \alpha_t^{-1}\bigl(x_t + \sigma_t^2 \nabla_{\!x_t}\log p(x_t)\bigr)$,
+and differentiating it with respect to $x_t$,
+\begin{equation} \label{eq:vt_derivation}
+    \nabla_{\!x_t}^{\top}\mathbb{E}[x \mid x_t]
+    = \alpha_t^{-1}\bigl(I + \sigma_t^{2}\nabla^{2}_{\!x_t}\log p(x_t)\bigr) .
+\end{equation}
+The second-order Tweedie identity for the kernel of \Eqref{eq:transition_kernel_diffusion} is
+$\mathbb{V}[x \mid x_t] = \alpha_t^{-2}\sigma_t^{2}\bigl(I + \sigma_t^{2}\nabla^{2}_{\!x_t}\log p(x_t)\bigr)$,
+so combining the two eliminates the Hessian and leaves
+\begin{equation} \label{eq:vt}
+    V_t \;\triangleq\; \mathbb{V}[x \mid x_t] \;=\; \alpha_t^{-1}\sigma_t^{2}\,
+    \nabla_{\!x_t}^{\top}\mathbb{E}[x \mid x_t] ,
+\end{equation}
+which is the expression used in Section~\ref{section: correction}. Only a
+vector--Jacobian product through the denoiser is ever needed, never the matrix itself. Note that
+$V_t$ is the covariance of the \emph{conditional} $p(x \mid x_t)$ and not of the marginal
+$p(x)$: replacing it by an ensemble covariance would substitute the wrong factor into
+\Eqref{eq:inner_target}.
+
+\subsection{Gaussian surrogate} \label{appendice:surrogate}
+
+Let $(x,y)$ given $x_t$ have moments $(\mu_x, \mu_y, C_{xx}, C_{yx}, C_{yy})$ and posit the
+affine model of \Eqref{eq:surrogate_likelihood}. Matching the moments it implies against those
+of the joint,
+\begin{equation} \label{eq:moment_match}
+    \mathbb{E}[y] = A\mu_x + b, \qquad
+    \mathrm{Cov}(y,x) = A\,C_{xx}, \qquad
+    \mathrm{Cov}(y) = A\,C_{xx}A^{\top} + \Sigma_y ,
+\end{equation}
+and solving in order yields \Eqref{eq:slr}. The pseudo-inverse in $A = C_{yx}C_{xx}^{\dagger}$
+is needed because $C_{xx}$ is estimated from $N$ particles and has rank at most $N-1 \ll n$;
+$A$ is then the linear minimum-mean-square predictor of $y$ from $x$ on the subspace the
+ensemble spans, and is left at zero off it.
+
+Two properties matter downstream. First, nothing assumes the noise $\eta$ of
+\Eqref{eq:forward_model} is additive or Gaussian: the surrogate matches moments, whatever their
+origin, and $\Sigma_y$ absorbs both the stochasticity of $\mathcal{A}$ and the residual of the
+affine fit, which is why it cannot be replaced by a nominal noise covariance. Second, the
+identity $\Sigma_y = C_{yy} - AC_{xx}A^{\top}$ holds only at the least-squares $A$; neither
+variant uses that $A$, which is why $\Sigma_y$ is estimated separately in
+Appendix~\ref{appendice:sigma_estimation} rather than read off \Eqref{eq:slr}.
+
+\subsection{Ensemble realization} \label{appendice:ensemble}
+
+\paragraph{Drawing the ensemble.} \label{appendice:draw}
+Each particle is denoised from its own anchor by integrating \Eqref{eq:generative_SDE} at
+$\lambda = 0$ from $t$ down to $0$, costing a few denoiser evaluations and no simulator calls.
+The draw must be a \emph{sample} of $p(x \mid x_t)$ rather than the Tweedie mean: the surrogate
+of \Eqref{eq:slr} is estimated from the scatter of the pairs $\{x^{(i)}, y^{(i)}\}$, and a cloud
+collapsed onto the conditional mean carries no scatter to fit. We use the deterministic
+probability-flow limit rather than a stochastic reversal; both are exact reversals of
+\Eqref{eq:forward_diffusion_process}, but the stochastic one re-injects noise that the denoiser
+must then remove with its own approximate score.
+
+\paragraph{Moment matching.} \label{appendice:moment_matching}
+\Eqref{eq:ensemble_update} reproduces the moments of \Eqref{eq:kalman} without forming either.
+With $x^{(i)} \sim \mathcal{N}(\mu_t, V_t)$ and
+$y^{(i)} = Ax^{(i)} + b + \varepsilon^{(i)}$, $\varepsilon^{(i)} \sim \mathcal{N}(0, \Sigma_y)$,
+\begin{align} \label{eq:update_moments}
+    \mathbb{E}\bigl[x^{(i)+}\bigr] &= \mu_t + K(y - A\mu_t - b), \\
+    \mathrm{Cov}\bigl(x^{(i)+}\bigr)
+      &= (I - KA)V_t(I - KA)^{\top} + K\Sigma_y K^{\top} = (I - KA)V_t ,
+\end{align}
+the last equality holding for the gain of \Eqref{eq:kalman}. The cross term vanishes because the
+simulator is queried \emph{with} its noise: the innovation $y - y^{(i)}$ already carries a draw
+of $\mathcal{N}(0,\Sigma_y)$ independent of $x^{(i)}$. This is what removes the perturbation and
+the inflation a stochastic ensemble Kalman filter would otherwise need.
+
+\paragraph{Incremental versus anchored updates.} \label{appendice:anchoring}
+Each particle moves from its own position. The anchored alternative
+$x^{(i)+} = \mu_t + K(y - y^{(i)})$ places every particle at a common point plus a
+residual-driven offset, so its analysis covariance is $K\Sigma_yK^{\top}$ alone: the prior
+spread $V_t$ is discarded rather than contracted, and the ensemble collapses. The distinction is
+a property of the update \emph{form}, not of the quality of its ingredients --- the anchored form
+collapses even with an exact $A$ and an exact $\Sigma_y$, whereas \Eqref{eq:ensemble_update}
+retains $(I - KA)V_t$, the posterior covariance of the surrogate.
+
+\subsection{Low-rank estimation and linear solves} \label{appendice:lowrank}
+
+\paragraph{KPS-Hybrid.} The fitted slope is kept factored, $A = W V_h^{\top}$ with $r$ columns,
+never as a $d \times n$ matrix. With $M = V_h^{\top} V_t V_h$, $G = W^{\top}W$ and
+$\Sigma_y = \sigma_y^{2}I$, the push-through identity
+\begin{equation} \label{eq:pushthrough}
+    W^{\top}\bigl(W M W^{\top} + \sigma_y^{2} I\bigr)^{-1}
+    = \bigl(\sigma_y^{2} I_r + G M\bigr)^{-1} W^{\top}
+\end{equation}
+reduces the whole step to one $r \times r$ solve. The equivalent Woodbury form is algebraically
+identical but numerically fragile here: it recovers the step as a difference divided by
+$\sigma_y^{2}$, and since $AV_tA^{\top}$ has rank $r$ while $d$ is in the thousands,
+$\sigma_y^{2}I$ is the only term making the system invertible and that difference is a near-exact
+cancellation over the remaining $d - r$ directions, so dividing it by a small $\sigma_y^{2}$
+amplifies the rounding error by $1/\sigma_y^{2}$. \Eqref{eq:pushthrough} never divides by
+$\sigma_y^{2}$. We additionally project $M$ onto the positive semi-definite cone, which is
+required rather than cosmetic: $V_t$ of \Eqref{eq:vt} is the Jacobian of a learned network and is
+not symmetric, so $M$ can be indefinite, and an exact solve of an indefinite system returns an
+amplifying step rather than a gain.
+
+\paragraph{KPS-Gradient.} Here $A$ is implicit and admits no low-rank factorization, so the
+inverse is applied by GMRES \citep{GMRES} on $u \mapsto A V_t A^{\top} u + \sigma_y^{2} u$, each
+iteration costing one Jacobian-vector and one vector-Jacobian product through the simulator and
+one through the denoiser. GMRES rather than conjugate gradients because the operator is not
+symmetric: for an exact denoiser $V_t$ would be proportional to a Hessian by \Eqref{eq:vt}, but a
+learned network's Jacobian is the Hessian of nothing. CG assumes symmetry to keep its search
+directions conjugate and is unstable here, whereas GMRES assumes neither symmetry nor
+definiteness.
+
+\subsection{Estimating \texorpdfstring{$\Sigma_y$}{Sigma y} out of sample}
+\label{appendice:sigma_estimation}
+
+$\Sigma_y$ is the residual covariance of the fit and cannot be read off \Eqref{eq:slr}, which is
+exact only at the least-squares $A$ --- KPS-Hybrid truncates to rank $r$ and KPS-Gradient uses a
+Jacobian, so neither qualifies. Nor can it be estimated in sample: the regression is solved at
+the full numerical rank of the centred ensemble, which is $N - 1$ whenever $N - 1 \le n$, so the
+fit interpolates its own pairs and the in-sample residual is zero to machine precision however
+poor the linearization actually is.
+
+We therefore split the ensemble in two, fit on one half, score the squared residual on the other,
+swap the folds and average, taking $\Sigma_y = \sigma_y^{2}I$. This costs no additional simulator
+calls, both folds reusing the same $\{x^{(i)}, y^{(i)}\}$. The resulting $\sigma_y^{2}$ is the
+only channel through which the surrogate learns how badly the affine model fits, and it is what
+keeps the gain from over-stepping at the low-noise end of the schedule, where that fit is worst
+relative to the remaining prior spread.
+
+\subsection{Gibbs loop at fixed noise level} \label{appendice:gibbs}
+
+\paragraph{Invariance.} \label{appendice:gibbs_invariance}
+\Eqref{eq:gibbs_sweep} is a two-block Gibbs sampler on $p(x, x_t \mid y)$: the first block
+redraws $x$ from $p(x \mid x_t, y)$, the second redraws $x_t$ from
+$p(x_t \mid x, y) = p(x_t \mid x)$, the equality holding because $x_t$ is conditionally
+independent of $y$ given $x$ and the kernel being that of
+\Eqref{eq:transition_kernel_diffusion}. Each block leaves the joint invariant, hence so does the
+sweep, and in particular the marginal $p(x_t \mid y)$ that \Eqref{eq:annealed_chain} assumes at
+every level is preserved. With the surrogate of \Eqref{eq:kalman} in place of the exact first
+block the sweep is invariant for the Gaussian surrogate rather than for the true conditional, so
+the loop should be read as a mechanism for restoring consistency and not as a route to asymptotic
+exactness.
+
+\paragraph{Accumulation of per-level errors.} \label{appendice:gibbs_perturbation}
+The loop does not reduce the bias of the update at a given level. What it removes is the drift of
+the \emph{pair}: after a correction acting on $x$ alone, $(x, x_t)$ is no longer a plausible
+realization of \Eqref{eq:forward_diffusion_process}, while \Eqref{eq:annealed_chain} assumes at
+every level that it is. Re-noising from the corrected $x$ returns the pair to the forward
+process, so the mismatch is not carried into the next transition and errors do not compound over
+the $T$ levels. A second effect is that the surrogate is refitted around a cloud that already
+carries $y$, so the linearization is taken where the posterior has mass rather than where the
+prior does, and the re-noising restores the spread the update contracted, which is what lets the
+chain reach modes the unimodal \Eqref{eq:kalman} cannot.
+
+\paragraph{Advancing the chain.} \label{appendice:transfer}
+On the last sweep of a level the cloud is re-noised at the \emph{next} level's noise scale rather
+than the current one (Algorithm~\ref{alg:KPS}, lines 5--9). This is how information survives a
+level transition: re-noising at the current scale and then re-drawing at the next would discard
+the correction just applied, whereas the handover delivers the cloud to the next level already at
+the tighter scale, carrying the update with it.
+
+\subsection{Variants and cost} \label{appendice:variants}
+
+The variants differ only in how the slope $A$ is obtained and agree in every other component ---
+prior draw, $V_t$, held-out $\Sigma_y$, incremental update and Gibbs loop.
+
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & KPS-Hybrid & KPS-Gradient \\
+\midrule
+slope $A$       & regression on $\{x^{(i)}, y^{(i)}\}$ & Jacobian of $\mathcal{A}$ \\
+simulator       & black-box, non-differentiable        & must be differentiable \\
+rank of $A$     & at most $\min(r, N-1)$               & full \\
+linear solve    & $r \times r$, \Eqref{eq:pushthrough} & GMRES, matrix-free \\
+per-iteration   & ---                                  & one jvp and one vjp \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+One call to \textsc{Update} costs $N$ prior draws and $N$ simulations, and the chain makes
+$M \times T$ such calls, so the simulator budget is exactly $M\,T\,N$ and does not depend on the
+variant. Prior draws cost a few denoiser evaluations each and consume no simulator budget.
+KPS-Gradient adds two simulator differentiations and one denoiser differentiation per Krylov
+iteration; these do not enter the simulator-call budget, but they dominate its wall time, and the
+number of iterations is the single setting that most affects its accuracy.
+
+The per-particle linearization $A^{(i)}$ of Section~\ref{section: correction} costs one
+Jacobian-vector product per particle instead of the $N$ that assembling the ensemble average of
+\Eqref{eq:stein} would require, and is obtained for free by batching the differentiation over the
+cloud. The particles then couple only through $\sigma_y^{2}$.

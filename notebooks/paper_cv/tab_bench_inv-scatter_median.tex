@@ -1,0 +1,27 @@
+\small
+\begin{tabular}{llcc}
+\toprule
+Method & $N$ & PSNR $\uparrow$ & SSIM $\uparrow$ \\
+\midrule
+\multicolumn{4}{l}{\emph{published baselines (InverseBench, Table 3, 360 receivers)}} \\
+FISTA-TV & -- & $32.13$ & $0.9790$ \\
+DDRM & -- & $32.60$ & $0.9290$ \\
+DDNM & -- & $36.38$ & $0.9350$ \\
+$\Pi$GDM & -- & $27.93$ & $0.8890$ \\
+DPS & -- & $32.06$ & $0.8460$ \\
+LGD & -- & $27.90$ & $0.8120$ \\
+DiffPIR & -- & $34.24$ & $0.9880$ \\
+PnP-DM & -- & $33.91$ & $0.9880$ \\
+DAPS & -- & $34.64$ & $0.9570$ \\
+RED-diff & -- & $36.56$ & $0.9810$ \\
+FPS & -- & $33.24$ & $0.8700$ \\
+MCG-diff & -- & $30.94$ & $0.7510$ \\
+\midrule
+\multicolumn{4}{l}{\emph{this work}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{64\\\strut} & \shortstack{19.12\\{\tiny[17.73,\,21.63]}} & \shortstack{0.7730\\{\tiny[0.6996,\,0.8593]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{128\\\strut} & \shortstack{20.53\\{\tiny[19.47,\,23.46]}} & \shortstack{0.8140\\{\tiny[0.7632,\,0.8919]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{256\\\strut} & \shortstack{22.42\\{\tiny[21.30,\,25.74]}} & \shortstack{0.8647\\{\tiny[0.8275,\,0.9297]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{512\\\strut} & \shortstack{25.41\\{\tiny[23.77,\,29.54]}} & \shortstack{0.9220\\{\tiny[0.8923,\,0.9669]}} \\
+\shortstack[l]{KPS-H\\\strut} & \shortstack{16\\\strut} & \shortstack{37.85\\{\tiny[36.00,\,40.07]}} & \shortstack{0.9956\\{\tiny[0.9930,\,0.9974]}} \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,12 @@
+\small
+\setlength{\tabcolsep}{4pt}
+\sloppy
+\begin{tabular}{@{}p{0.17\linewidth}p{0.28\linewidth}p{0.06\linewidth}p{0.22\linewidth}p{0.11\linewidth}@{}}
+\toprule
+Problem & Forward model & $\sigma_{\text{noise}}$ & Prior & Instances \\
+\midrule
+\raggedright\sloppy Black-hole imaging & \raggedright\sloppy EHT visibilities, 64$\times$64 image, \texttt{vis\_thermal} noise, \texttt{direct} transform & 0 & \raggedright\sloppy \texttt{\scriptsize blackhole-50k} & 100 (0--99) \\
+\raggedright\sloppy Inverse scattering & \raggedright\sloppy 128$\times$128 permittivity, 20 transmitters $\times$ 360 receivers, wavenumber 6 & 0.0001 & \raggedright\sloppy \texttt{\scriptsize inv-scatter-5m} & 100 (0--99) \\
+\raggedright\sloppy Navier--Stokes & \raggedright\sloppy vorticity at $t=1.0$, Re${}=200.0$, 128$^2$ downsampled $\times$2 & 0.0001 & \raggedright\sloppy \texttt{\scriptsize ns-5m} & 10 (0--9) \\
+\bottomrule
+\end{tabular}

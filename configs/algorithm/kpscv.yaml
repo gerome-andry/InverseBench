@@ -1,0 +1,48 @@
+name: KPSCV
+
+# kpsh with the likelihood fit replaced. Ladder, draw, re-noising, handover and V_t are kpsh's,
+# unchanged, so an A/B against `algorithm=kpsh` isolates the fit.
+#
+# A and S_y come from ONE ridge-regularised joint. Four hand-set choices in kpsh are gone, each
+# removed by a measurement (ridge_slr/RESULTS_BLACKHOLE.md): the rank r=32, the inert
+# leave-one-out ridge grid, the separate two-fold Sigma_y, and the PSD clamp on M.
+method:
+  _target_: algo.kpscv.KPSCVAlgo
+
+  num_particles: 128
+  levels: 32
+  sweeps: 2
+  draw_steps: 4
+
+  sigma_max: 80.0
+  sigma_min: 0.05
+
+  # K-fold CV over the particles picks the ridge. It is the only selector that survives here:
+  # at N-1 <= D the fit interpolates, so LOO, GCV and the evidence are all unbounded at
+  # lambda = 0, and Ledoit-Wolf is inert (it keeps 124-126 of 127 modes at D = 16384).
+  # Measured end-to-end against LW at N=128: LW saves 8% wall clock and costs 6.5% CRPS and
+  # 34% point error.
+  #
+  # K=2, NOT 4. K is the cost knob -- the selection is K SVDs, 58 ms against 121 ms at N=128 --
+  # and it grows as ~N^1.5 while the matrix-free solve grows as ~N, so it reaches ~14% of a
+  # sweep at N=512. Checked at N=128 with the full S_y on blackhole id 2: K=2 gives crps
+  # 0.0131 / cover90 0.465 / ssr 0.291 against K=4's 0.0134 / 0.443 / 0.264, i.e. equal or
+  # marginally better on every axis.
+  cv_folds: 2
+
+  # Krylov iterations for the matrix-free solve. At 8 and above it is CONVERGED -- it matches
+  # the exact direct solve to 1e-6 -- so this is a tolerance. At 4 it under-solves, which damps
+  # the step and measures better (ssr 0.380 vs 0.138 at N=128); that is an accidental trust
+  # region and a tuned knob, recorded as an open finding rather than shipped.
+  mf_iter: 8
+
+  # Particles per Krylov solve. MEMORY, NOT MATHEMATICS -- the per-particle systems are
+  # independent given the cloud statistics, so chunking is exact. It is NOT optional: an
+  # unchunked solve holds one autograd graph over all N particles for the whole Krylov loop,
+  # which OOM'd 33 of 60 tasks of a campaign (every 128x128 problem at N >= 256). Chunked,
+  # peak memory is flat in N -- inv-scatter 41.5 GB at N=256 and 41.7 GB at N=512, against the
+  # 22.1 -> 5.8 GB the chunking saves on blackhole at N=128 alone.
+  #
+  # PIN IT ACROSS A CAMPAIGN, like draw_batch: cuDNN picks different kernels per batch shape,
+  # so changing it moves one analysis by 1.9e-4 and the ladder amplifies that to ~4e-2.
+  solve_batch: 64

@@ -1,0 +1,15 @@
+\small
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}l@{\hspace{7pt}}rrr@{\hspace{7pt}}rrr@{\hspace{7pt}}rrr@{}}
+\toprule
+& \multicolumn{3}{c}{Inverse scattering} & \multicolumn{3}{c}{Black-hole imaging} & \multicolumn{3}{c}{Navier--Stokes} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}
+Method & \shortstack{PSNR\\$\uparrow$} & \shortstack{CRPS\\$\downarrow$} & \shortstack{spread-\\skill $\to 1$} & \shortstack{blur\\PSNR $\uparrow$} & \shortstack{CRPS\\$\downarrow$} & \shortstack{spread-\\skill $\to 1$} & \shortstack{rel.\\$L_2$ $\downarrow$} & \shortstack{CRPS\\$\downarrow$} & \shortstack{spread-\\skill $\to 1$} \\
+\midrule
+Best published & 36.6 & -- & -- & 32.9 & -- & -- & \textbf{0.120} & -- & -- \\
+2nd published & 36.4 & -- & -- & 32.9 & -- & -- & 0.325 & -- & -- \\
+\midrule
+KPS-G ($N{=}16$) & \textbf{39.5} & 0.008 & 0.80 & 36.3 & 0.141 & 0.96 & -- & -- & -- \\
+KPS-H ($N{=}512$) & 21.6 & 0.095 & 0.53 & \textbf{36.9} & 0.147 & 0.64 & 0.313 & 0.199 & 0.25 \\
+\bottomrule
+\end{tabular}

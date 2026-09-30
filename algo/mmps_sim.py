@@ -48,9 +48,8 @@ class MMPSSimAlgo(Algo):
         no held-out residual, ridge or rank     no coupling between particles
 
     and the particles are independent, so one batched jvp/vjp pair per Krylov iteration covers
-    the whole cloud -- against N^2 simulator passes for the averaged-Jacobian variant in
-    `kpsd`. Each particle is an independent posterior sample; `num_particles` only sets how
-    many you draw.
+    the whole cloud -- against N^2 simulator passes for an averaged-Jacobian variant. Each
+    particle is an independent posterior sample; `num_particles` only sets how many you draw.
 
     WHAT IT GIVES UP against the fitted-likelihood variants: A is the LOCAL Jacobian at
     x_hat_i, not an average over the cloud, so nothing here represents the curvature of h
